@@ -12,8 +12,8 @@ export class AuthService {
     return `This action returns all auth`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
+  findOne(username: string) {
+    return `This action returns a #${username} auth`;
   }
 
   update(id: number, updateAuthDto: UpdateAuthDto) {
