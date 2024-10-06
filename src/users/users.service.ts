@@ -32,14 +32,7 @@ export class UsersService {
 
     try {
       user.hashPass = await argon2.hash(password);
-    } catch (error) {
-      throw new InternalServerErrorException(
-        error.message,
-        'Failed to hash password',
-      );
-    }
 
-    try {
       const savedUser = await this.usersRepository.save(user);
       delete savedUser.hashPass;
       return savedUser;
@@ -51,8 +44,21 @@ export class UsersService {
     }
   }
 
-  findAll() {
-    return this.usersRepository;
+  async findAll() {
+    try {
+      const usersFind = await this.usersRepository.find();
+      if (!usersFind) {
+        throw new InternalServerErrorException('Users not found');
+      }
+      return usersFind.map((user) => {
+        return new ReponseUser(user);
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        error.message,
+        'Failed to find users',
+      );
+    }
   }
 
   async findOne(id: number) {
@@ -70,7 +76,11 @@ export class UsersService {
     }
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    if (updateUserDto.password) {
+      const hashPassword = await argon2.hash(updateUserDto.password);
+      updateUserDto.password = hashPassword;
+    }
     return this.usersRepository.update(id, updateUserDto);
   }
 
