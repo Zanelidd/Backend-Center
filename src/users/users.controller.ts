@@ -11,6 +11,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
+import { loginDto } from './dto/login.dto';
 
 @Controller('users')
 export class UsersController {
@@ -19,6 +20,11 @@ export class UsersController {
   @Post()
   create(@Body() createUserDto: CreateUserDto): Promise<User> {
     return this.usersService.create(createUserDto);
+  }
+
+  @Post('signIn')
+  login(@Body() loginDto: loginDto) {
+    return this.usersService.signIn(loginDto);
   }
 
   @Get()

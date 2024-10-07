@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -10,12 +11,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as argon2 from 'argon2';
 import { ReponseUser } from './dto/response-user.dto';
+import { loginDto } from './dto/login.dto';
+import { AuthService } from 'src/auth/auth.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private authService: AuthService,
   ) {}
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { username, email, password } = createUserDto;
@@ -42,6 +46,19 @@ export class UsersService {
         'Failed to create user',
       );
     }
+  }
+
+  async signIn(loginDto: loginDto) {
+    const findUser = await this.usersRepository.findOneBy({
+      username: loginDto.username,
+    });
+    if (!findUser) {
+      throw new NotFoundException(`User ${loginDto.username} not Found`);
+    }
+    if (!findUser.hashPass) {
+      throw new NotFoundException(`Pass not found`);
+    }
+    return this.authService.login(loginDto.password, findUser.hashPass);
   }
 
   async findAll() {
