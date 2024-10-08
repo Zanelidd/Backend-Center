@@ -1,16 +1,34 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
-  constructor() {}
+  constructor(
+    private jwtServices: JwtService,
+    private configService: ConfigService,
+  ) {}
 
-  async login(password: string, hashPassword: string) {
-    const passwordverif = await argon2.verify(hashPassword, password);
+  async login(password: string, user: User): Promise<{ access_token: string }> {
+    if (!user.hashPass) {
+      throw new NotFoundException(`Pass not found`);
+    }
+    const passwordverif = await argon2.verify(user.hashPass, password);
     if (!passwordverif) {
       throw new UnauthorizedException();
     }
+    const payload = { sub: user.id, username: user.username };
 
-    return true;
+    return {
+      access_token: this.jwtServices.sign(payload, {
+        secret: this.configService.get('TOKEN_SECRET'),
+      }),
+    };
   }
 }

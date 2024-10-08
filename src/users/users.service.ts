@@ -55,10 +55,7 @@ export class UsersService {
     if (!findUser) {
       throw new NotFoundException(`User ${loginDto.username} not Found`);
     }
-    if (!findUser.hashPass) {
-      throw new NotFoundException(`Pass not found`);
-    }
-    return this.authService.login(loginDto.password, findUser.hashPass);
+    return this.authService.login(loginDto.password, findUser);
   }
 
   async findAll() {
