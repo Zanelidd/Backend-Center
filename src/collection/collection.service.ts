@@ -1,17 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Collection } from './entities/collection.entity';
-import { Repository } from 'typeorm';
+import { CreateCollectionDto } from './dto/create-collection.dto';
+import { PrismaService } from 'src/provider/database/prisma/prisma.service';
 
 @Injectable()
 export class CollectionService {
-  constructor(
-    @InjectRepository(Collection)
-    private readonly collectionRepository: Repository<Collection>,
-  ) {}
-  create(collectionData: Partial<Collection>) {
-    return this.collectionRepository.save(collectionData);
+  constructor(private prismaService: PrismaService) {}
+
+  async create(collectionData: CreateCollectionDto) {
+    const { cardId } = collectionData;
+    console.log(cardId);
+
+    const existingCard = await this.prismaService.collection.findFirst({
+      where: { cardId },
+    });
+    if (existingCard) {
+      console.log('This card already in collection');
+      // const id = existingCard.id;
+      // console.log('This card has been deleted from collection');
+      // return this.prismaService.collection.delete({ where: { id: id } });
+    } else {
+      console.log('Card added to the collection');
+      return this.prismaService.collection.create({ data: { cardId } });
+    }
   }
 
   findAll() {
@@ -23,7 +34,10 @@ export class CollectionService {
   }
 
   update(id: number, updateCollectionDto: UpdateCollectionDto) {
-    return this.collectionRepository.update(id, UpdateCollectionDto);
+    return this.prismaService.collection.update({
+      where: { id: id },
+      data: { ...updateCollectionDto },
+    });
   }
 
   remove(id: number) {

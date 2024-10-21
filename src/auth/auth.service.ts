@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { User } from 'src/users/entities/user.entity';
+import { user } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -15,11 +15,11 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async login(password: string, user: User): Promise<{ access_token: string }> {
-    if (!user.hashPass) {
+  async login(password: string, user: user): Promise<{ access_token: string }> {
+    if (!user.password) {
       throw new NotFoundException(`Pass not found`);
     }
-    const passwordverif = await argon2.verify(user.hashPass, password);
+    const passwordverif = await argon2.verify(user.password, password);
     if (!passwordverif) {
       throw new UnauthorizedException();
     }

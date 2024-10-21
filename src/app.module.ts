@@ -4,16 +4,16 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AppConfigModule } from './config/App/config.module';
-import { TypeOrmProvideModule } from './providers/typeorm.module';
 import { CollectionModule } from './collection/collection.module';
+import { PrismaModule } from './provider/database/prisma/prisma.module';
 
 @Module({
   imports: [
     AuthModule,
     UsersModule,
     AppConfigModule,
-    TypeOrmProvideModule,
     CollectionModule,
+    PrismaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

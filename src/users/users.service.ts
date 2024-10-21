@@ -5,41 +5,37 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as argon2 from 'argon2';
 import { ReponseUser } from './dto/response-user.dto';
 import { loginDto } from './dto/login.dto';
 import { AuthService } from 'src/auth/auth.service';
+import { PrismaService } from 'src/provider/database/prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private prismaService: PrismaService,
     private authService: AuthService,
   ) {}
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(createUserDto: CreateUserDto): Promise<ReponseUser> {
     const { username, email, password } = createUserDto;
-    const existingUser = await this.usersRepository.findOne({
-      where: [{ username }, { email }],
+    const existingUser = await this.prismaService.user.findFirst({
+      where: { username, email },
     });
 
     if (existingUser) {
       throw new ConflictException('Username or email already exists');
     }
-    const user = new User();
-    user.username = username;
-    user.email = email;
 
     try {
-      user.hashPass = await argon2.hash(password);
+      const hashPass = await argon2.hash(password);
 
-      const savedUser = await this.usersRepository.save(user);
-      delete savedUser.hashPass;
-      return savedUser;
+      const createdUser = await this.prismaService.user.create({
+        data: { username: username, email: email, password: hashPass },
+        select: { id: true, username: true, email: true },
+      });
+      return new ReponseUser(createdUser);
     } catch (error) {
       throw new InternalServerErrorException(
         error.message,
@@ -49,8 +45,8 @@ export class UsersService {
   }
 
   async signIn(loginDto: loginDto) {
-    const findUser = await this.usersRepository.findOneBy({
-      username: loginDto.username,
+    const findUser = await this.prismaService.user.findUnique({
+      where: { username: loginDto.username },
     });
     if (!findUser) {
       throw new NotFoundException(`User ${loginDto.username} not Found`);
@@ -60,7 +56,7 @@ export class UsersService {
 
   async findAll() {
     try {
-      const usersFind = await this.usersRepository.find();
+      const usersFind = await this.prismaService.user.findMany();
       if (!usersFind) {
         throw new InternalServerErrorException('Users not found');
       }
@@ -77,7 +73,9 @@ export class UsersService {
 
   async findOne(id: number) {
     try {
-      const userFind = await this.usersRepository.findOneBy({ id: id });
+      const userFind = await this.prismaService.user.findUnique({
+        where: { id: id },
+      });
       if (!userFind) {
         throw new InternalServerErrorException('User not found');
       }
@@ -95,10 +93,13 @@ export class UsersService {
       const hashPassword = await argon2.hash(updateUserDto.password);
       updateUserDto.password = hashPassword;
     }
-    return this.usersRepository.update(id, updateUserDto);
+    return this.prismaService.user.update({
+      where: { id: id },
+      data: { ...updateUserDto },
+    });
   }
 
   remove(id: number) {
-    return this.usersRepository.delete(id);
+    return this.prismaService.user.delete({ where: { id: id } });
   }
 }

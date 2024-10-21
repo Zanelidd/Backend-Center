@@ -9,15 +9,15 @@ import {
 } from '@nestjs/common';
 import { CollectionService } from './collection.service';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
-import { Collection } from './entities/collection.entity';
+import { CreateCollectionDto } from './dto/create-collection.dto';
 
 @Controller('collection')
 export class CollectionController {
   constructor(private readonly collectionService: CollectionService) {}
 
   @Post()
-  create(@Body() cardId: Collection) {
-    return this.collectionService.create(cardId);
+  create(@Body() createCollectionDto: CreateCollectionDto) {
+    return this.collectionService.create(createCollectionDto);
   }
 
   @Get()

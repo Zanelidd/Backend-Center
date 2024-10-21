@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { CollectionService } from './collection.service';
 import { CollectionController } from './collection.controller';
-import { Collection } from './entities/collection.entity';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { PrismaModule } from 'src/provider/database/prisma/prisma.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Collection])],
+  imports: [PrismaModule],
   controllers: [CollectionController],
   providers: [CollectionService],
+  exports: [CollectionService],
 })
 export class CollectionModule {}

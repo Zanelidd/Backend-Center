@@ -10,6 +10,7 @@ import { AppConfigService } from './config.service';
       load: [db_configuration],
     }),
   ],
+
   providers: [AppConfigService],
   exports: [AppConfigService],
 })
