@@ -8,8 +8,7 @@ export class CollectionService {
   constructor(private prismaService: PrismaService) {}
 
   async create(collectionData: CreateCollectionDto) {
-    const { cardId } = collectionData;
-    console.log(cardId);
+    const { cardId, cardImg, cardName } = collectionData;
 
     const existingCard = await this.prismaService.collection.findFirst({
       where: { cardId },
@@ -21,7 +20,9 @@ export class CollectionService {
       return this.prismaService.collection.delete({ where: { id: id } });
     } else {
       console.log('Card added to the collection');
-      return this.prismaService.collection.create({ data: { cardId } });
+      return this.prismaService.collection.create({
+        data: { cardId: cardId, cardImg: cardImg, cardName },
+      });
     }
   }
 

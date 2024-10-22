@@ -16,6 +16,8 @@ model user {
 }
 
 model collection {
-  id     Int    @id @default(autoincrement())
-  cardId String
+  id       Int    @id @default(autoincrement())
+  cardId   String
+  cardImg  String @default("")
+  cardName String @default("")
 }
