@@ -16,9 +16,9 @@ export class CollectionService {
     });
     if (existingCard) {
       console.log('This card already in collection');
-      // const id = existingCard.id;
-      // console.log('This card has been deleted from collection');
-      // return this.prismaService.collection.delete({ where: { id: id } });
+      const id = existingCard.id;
+      console.log('This card has been deleted from collection');
+      return this.prismaService.collection.delete({ where: { id: id } });
     } else {
       console.log('Card added to the collection');
       return this.prismaService.collection.create({ data: { cardId } });
@@ -26,11 +26,11 @@ export class CollectionService {
   }
 
   findAll() {
-    return `This action returns all collection`;
+    return this.prismaService.collection.findMany();
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} collection`;
+    return this.prismaService.collection.findFirst({ where: { id: id } });
   }
 
   update(id: number, updateCollectionDto: UpdateCollectionDto) {
@@ -41,6 +41,6 @@ export class CollectionService {
   }
 
   remove(id: number) {
-    return `This action removes a #${id} collection`;
+    return this.prismaService.collection.delete({ where: { id: id } });
   }
 }
