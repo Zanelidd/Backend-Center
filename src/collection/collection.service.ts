@@ -10,38 +10,31 @@ export class CollectionService {
   async create(collectionData: CreateCollectionDto) {
     const { cardId, cardImg, cardName } = collectionData;
 
-    const existingCard = await this.prismaService.collection.findFirst({
-      where: { cardId },
+    console.log('Card added to the collection');
+    return this.prismaService.collection.create({
+      data: { cardId, cardImg, cardName },
     });
-    if (existingCard) {
-      console.log('This card already in collection');
-      const id = existingCard.id;
-      console.log('This card has been deleted from collection');
-      return this.prismaService.collection.delete({ where: { id: id } });
-    } else {
-      console.log('Card added to the collection');
-      return this.prismaService.collection.create({
-        data: { cardId: cardId, cardImg: cardImg, cardName },
-      });
-    }
   }
 
-  findAll() {
+  async findAll() {
     return this.prismaService.collection.findMany();
   }
 
-  findOne(id: number) {
+  async findOne(id: number) {
     return this.prismaService.collection.findFirst({ where: { id: id } });
   }
 
-  update(id: number, updateCollectionDto: UpdateCollectionDto) {
+  async update(id: number, updateCollectionDto: UpdateCollectionDto) {
     return this.prismaService.collection.update({
       where: { id: id },
       data: { ...updateCollectionDto },
     });
   }
 
-  remove(id: number) {
-    return this.prismaService.collection.delete({ where: { id: id } });
+  async remove(id: number) {
+    console.log(id);
+    return this.prismaService.collection.delete({
+      where: { id: id },
+    });
   }
 }

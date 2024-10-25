@@ -16,8 +16,10 @@ export class CollectionController {
   constructor(private readonly collectionService: CollectionService) {}
 
   @Post()
-  create(@Body() createCollectionDto: CreateCollectionDto) {
-    return this.collectionService.create(createCollectionDto);
+  async create(@Body() createCollectionDto: CreateCollectionDto) {
+    const result = await this.collectionService.create(createCollectionDto);
+    console.log('donnée envoyé au front', result);
+    return result;
   }
 
   @Get()
@@ -39,7 +41,7 @@ export class CollectionController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.collectionService.remove(+id);
   }
 }
