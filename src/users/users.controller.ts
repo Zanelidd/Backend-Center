@@ -17,7 +17,7 @@ import { ReponseUser } from './dto/response-user.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
+  @Post('signUp')
   create(@Body() createUserDto: CreateUserDto): Promise<ReponseUser> {
     return this.usersService.create(createUserDto);
   }

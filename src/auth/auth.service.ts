@@ -15,7 +15,10 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async login(password: string, user: user): Promise<{ access_token: string }> {
+  async login(
+    password: string,
+    user: user,
+  ): Promise<{ access_token: string; username: string }> {
     if (!user.password) {
       throw new NotFoundException(`Pass not found`);
     }
@@ -29,6 +32,7 @@ export class AuthService {
       access_token: this.jwtServices.sign(payload, {
         secret: this.configService.get('TOKEN_SECRET'),
       }),
+      username: user.username,
     };
   }
 }
