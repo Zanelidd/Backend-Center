@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CollectionController } from './collection.controller';
-import { CollectionService } from './collection.service';
+import { CollectionService } from '../service/collection.service';
 
 describe('CollectionController', () => {
   let controller: CollectionController;

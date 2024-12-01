@@ -6,6 +6,8 @@ import { UsersModule } from './users/users.module';
 import { AppConfigModule } from './config/App/config.module';
 import { CollectionModule } from './collection/collection.module';
 import { PrismaModule } from './provider/database/prisma/prisma.module';
+import { HttpModule } from '@nestjs/axios';
+import { ExternalApiModule } from './provider/external_api/external_api.module';
 
 @Module({
   imports: [
@@ -13,7 +15,9 @@ import { PrismaModule } from './provider/database/prisma/prisma.module';
     UsersModule,
     AppConfigModule,
     CollectionModule,
+    ExternalApiModule,
     PrismaModule,
+    HttpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

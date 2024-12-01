@@ -7,9 +7,10 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
-import { CollectionService } from './collection.service';
-import { UpdateCollectionDto } from './dto/update-collection.dto';
-import { CreateCollectionDto } from './dto/create-collection.dto';
+import { CollectionService } from '../service/collection.service';
+import { UpdateCollectionDto } from '../dto/update-collection.dto';
+import { CreateCollectionDto } from '../dto/create-collection.dto';
+import { ResponseCollectionDto } from '../dto/response-collection.dto';
 
 @Controller('collection')
 export class CollectionController {
@@ -18,8 +19,7 @@ export class CollectionController {
   @Post()
   async create(@Body() createCollectionDto: CreateCollectionDto) {
     const result = await this.collectionService.create(createCollectionDto);
-    console.log('donnée envoyé au front', result);
-    return result;
+    return new ResponseCollectionDto(result);
   }
 
   @Get()
@@ -28,8 +28,8 @@ export class CollectionController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.collectionService.findOne(+id);
+  findManyOneUser(@Param('id') id: string) {
+    return this.collectionService.findManyOneUser(+id);
   }
 
   @Patch(':id')

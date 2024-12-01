@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
-import { CollectionService } from './collection.service';
-import { CollectionController } from './collection.controller';
+import { CollectionService } from './service/collection.service';
+import { CollectionController } from './controller/collection.controller';
 import { PrismaModule } from 'src/provider/database/prisma/prisma.module';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, HttpModule],
   controllers: [CollectionController],
   providers: [CollectionService],
   exports: [CollectionService],

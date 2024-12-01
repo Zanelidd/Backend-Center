@@ -1,10 +1,13 @@
-import { IsString } from 'class-validator';
+import { IsNumber, IsObject, IsString } from 'class-validator';
+import { Image } from '../types/collectionType';
 
 export class CreateCollectionDto {
   @IsString()
   cardId: string;
   @IsString()
-  cardImg: string;
-  @IsString()
-  cardName: string;
+  name: string;
+  @IsObject()
+  images: Image;
+  @IsNumber()
+  userId: number;
 }
