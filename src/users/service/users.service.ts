@@ -4,12 +4,12 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { CreateUserDto } from '../dto/create-user.dto';
 import * as argon2 from 'argon2';
-import { ReponseUser } from './dto/response-user.dto';
-import { loginDto } from './dto/login.dto';
-import { AuthService } from 'src/auth/auth.service';
+import { ReponseUser } from '../dto/response-user.dto';
+import { loginDto } from '../dto/login.dto';
+import { AuthService } from 'src/auth/service/auth.service';
 import { PrismaService } from 'src/provider/database/prisma/prisma.service';
 
 @Injectable()
@@ -24,15 +24,26 @@ export class UsersService {
       where: { username, email },
     });
 
+    const hashingOptions = {
+      type: argon2.argon2id,
+      memoryCost: 2 ** 16,
+      time: 5,
+      parellelism: 1,
+    };
+
     if (existingUser) {
       throw new ConflictException('Username or email already exists');
     }
 
     try {
-      const hashPass = await argon2.hash(password);
+      const hashPass = await argon2.hash(password, hashingOptions);
 
       const createdUser = await this.prismaService.user.create({
-        data: { username: username, email: email, password: hashPass },
+        data: {
+          username: username,
+          email: email,
+          password: hashPass,
+        },
         select: { id: true, username: true, email: true },
       });
       return new ReponseUser(createdUser);
@@ -45,9 +56,10 @@ export class UsersService {
   }
 
   async signIn(loginDto: loginDto) {
-    const findUser = await this.prismaService.user.findUnique({
+    const findUser = await this.prismaService.user.findUniqueOrThrow({
       where: { username: loginDto.username },
     });
+
     if (!findUser) {
       throw new NotFoundException(`User ${loginDto.username} not Found`);
     }
