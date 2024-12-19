@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -13,11 +13,12 @@ model user {
   username String @unique
   email    String @unique
   password String
+  cards    card[]
 }
 
-model collection {
+model card {
   id       Int    @id @default(autoincrement())
-  cardId   String
-  cardImg  String @default("")
-  cardName String @default("")
+  remoteId String
+  user     user?  @relation(fields: [userId], references: [id])
+  userId   Int?
 }
