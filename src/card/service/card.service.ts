@@ -39,9 +39,10 @@ export class CardService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
+    console.log('Card deleted to the card');
     return this.prismaService.card.delete({
-      where: { id: id },
+      where: { remoteId: id },
     });
   }
 }
