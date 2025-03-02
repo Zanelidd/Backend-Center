@@ -48,10 +48,8 @@ export class UsersService {
       });
       return new ReponseUser(createdUser);
     } catch (error) {
-      throw new InternalServerErrorException(
-        error.message,
-        'Failed to create user',
-      );
+      console.log(error);
+      throw error;
     }
   }
 
