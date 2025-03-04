@@ -11,7 +11,6 @@ export class CardService {
   constructor(private prismaService: PrismaService) {}
 
   async create(cardData: CreateCardDto) {
-    console.log('Card added to the card');
     return this.prismaService.card.create({
       data: {
         remoteId: cardData.cardId,
@@ -40,7 +39,6 @@ export class CardService {
   }
 
   async remove(id: string) {
-    console.log('Card deleted to the card');
     return this.prismaService.card.delete({
       where: { remoteId: id },
     });
