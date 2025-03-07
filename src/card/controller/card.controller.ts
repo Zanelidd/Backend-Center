@@ -6,13 +6,16 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { CardService } from '../service/card.service';
 import { UpdateCardDto } from '../dto/update-card.dto';
 import { CreateCardDto } from '../dto/create-card.dto';
 import { ResponseCardDto } from '../dto/response-card.dto';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import { AuthGuard } from '../../auth/guard/auth.guard';
 
+@UseGuards(AuthGuard)
 @Controller('card')
 export class CardController {
   constructor(private readonly cardService: CardService) {}
