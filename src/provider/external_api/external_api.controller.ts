@@ -15,8 +15,14 @@ export class ExternalApiController {
   //return this.externalApi.findOne();
   //}
 
-  @Post()
+  @Post('/searchCard')
   findMany(@Body('name') name: string) {
     return this.externalApiService.findMany(name);
+  }
+
+  @Post('/cards')
+  findManyBySet(@Body('setId') setId: string) {
+    console.log(setId);
+    return this.externalApiService.findManyBySet(setId);
   }
 }

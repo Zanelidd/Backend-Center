@@ -16,7 +16,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         return {
           global: true,
           secret: configService.get<string>('TOKEN_SECRET'),
-          signOptions: { expiresIn: '240s' },
+          signOptions: { expiresIn: '2h' },
         };
       },
       inject: [ConfigService],

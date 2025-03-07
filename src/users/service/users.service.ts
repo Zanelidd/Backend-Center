@@ -1,8 +1,8 @@
 import {
-  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -20,9 +20,13 @@ export class UsersService {
   ) {}
   async create(createUserDto: CreateUserDto): Promise<ReponseUser> {
     const { username, email, password } = createUserDto;
-    const existingUser = await this.prismaService.user.findFirst({
-      where: { username, email },
-    });
+    const [existingUser] = await Promise.all([
+      this.prismaService.user.findFirst({
+        where: {
+          OR: [{ username }, { email }],
+        },
+      }),
+    ]);
 
     const hashingOptions = {
       type: argon2.argon2id,
@@ -32,25 +36,22 @@ export class UsersService {
     };
 
     if (existingUser) {
-      throw new ConflictException('Username or email already exists');
+      throw new UnauthorizedException(' Error creating ');
     }
 
-    try {
-      const hashPass = await argon2.hash(password, hashingOptions);
+    //Envoyer mail, dire que compte crée et mail envoyé
 
-      const createdUser = await this.prismaService.user.create({
-        data: {
-          username: username,
-          email: email,
-          password: hashPass,
-        },
-        select: { id: true, username: true, email: true },
-      });
-      return new ReponseUser(createdUser);
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    const hashPass = await argon2.hash(password, hashingOptions);
+
+    const createdUser = await this.prismaService.user.create({
+      data: {
+        username: username,
+        email: email,
+        password: hashPass,
+      },
+      select: { id: true, username: true, email: true },
+    });
+    return new ReponseUser(createdUser);
   }
 
   async signIn(loginDto: loginDto) {
@@ -68,7 +69,7 @@ export class UsersService {
     try {
       const usersFind = await this.prismaService.user.findMany();
       if (!usersFind) {
-        throw new InternalServerErrorException('Users not found');
+        new InternalServerErrorException('Users not found');
       }
       return usersFind.map((user) => {
         return new ReponseUser(user);
