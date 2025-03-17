@@ -3,14 +3,16 @@ import {
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { CreateUserDto } from '../dto/create-user.dto';
 import * as argon2 from 'argon2';
 import { ReponseUser } from '../dto/response-user.dto';
 import { loginDto } from '../dto/login.dto';
-import { AuthService } from 'src/auth/service/auth.service';
-import { PrismaService } from 'src/provider/database/prisma/prisma.service';
+import { AuthService } from '../../auth/service/auth.service';
+import { PrismaService } from '../../provider/database/prisma/prisma.service';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class UsersService {
@@ -18,15 +20,19 @@ export class UsersService {
     private prismaService: PrismaService,
     private authService: AuthService,
   ) {}
-  async create(createUserDto: CreateUserDto): Promise<ReponseUser> {
+
+  async create(createUserDto: CreateUserDto): Promise<{ message: string }> {
     const { username, email, password } = createUserDto;
-    const [existingUser] = await Promise.all([
-      this.prismaService.user.findFirst({
-        where: {
-          OR: [{ username }, { email }],
-        },
-      }),
-    ]);
+
+    const existingUser = await this.prismaService.user.findFirst({
+      where: {
+        OR: [{ username }, { email }],
+      },
+    });
+
+    if (existingUser) {
+      throw new UnauthorizedException('This email or username already exists');
+    }
 
     const hashingOptions = {
       type: argon2.argon2id,
@@ -35,23 +41,110 @@ export class UsersService {
       parellelism: 1,
     };
 
-    if (existingUser) {
-      throw new UnauthorizedException(' Error creating ');
-    }
-
-    //Envoyer mail, dire que compte crée et mail envoyé
-
     const hashPass = await argon2.hash(password, hashingOptions);
 
-    const createdUser = await this.prismaService.user.create({
-      data: {
-        username: username,
-        email: email,
-        password: hashPass,
-      },
-      select: { id: true, username: true, email: true },
+    const verificationToken = this.authService.generateToken({
+      username,
+      email,
+      hashPass,
+      action: 'register',
     });
-    return new ReponseUser(createdUser);
+
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+    const mailOptions = {
+      from: `"Pokemon Center" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Pokemon Center Account Verification',
+      html: `
+        <h1>Welcome to Pokemon Center!</h1>
+        <p>To verify your account, please click on the link below:</p>
+        <a href="${verificationLink}">Verify my account</a>
+        <p>This link will expire in 24 hours.</p>
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      return {
+        message: 'Verification email sent. Please check your inbox.',
+      };
+    } catch (error) {
+      console.error('Email sending error:', error);
+      throw new InternalServerErrorException(
+        'Error sending verification email',
+      );
+    }
+  }
+
+  async verifyAndCreateAccount(
+    token: string,
+  ): Promise<{ access_token: string; userId: number; username: string }> {
+    try {
+      const decodedToken = this.authService.verifyToken(token);
+
+      if (
+        !decodedToken ||
+        !decodedToken.action ||
+        decodedToken.action !== 'register'
+      ) {
+        throw new UnauthorizedException('Invalid Token');
+      }
+
+      const { username, email, hashPass } = decodedToken;
+
+      try {
+        const createdUser = await this.prismaService.user.create({
+          data: {
+            username,
+            email,
+            password: hashPass,
+          },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            password: true,
+          },
+        });
+
+        return {
+          access_token: this.authService.generateToken({
+            sub: createdUser.id,
+            username: createdUser.username,
+          }),
+          userId: createdUser.id,
+          username: createdUser.username,
+        };
+      } catch (error) {
+        if (error.code === 'P2002') {
+          const field = error.meta?.target?.[0];
+          throw new ConflictException(
+            `A user with this ${field === 'username' ? 'username' : 'email'} ready exist`,
+          );
+        }
+        throw error;
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error during verification');
+    }
   }
 
   async signIn(loginDto: loginDto) {

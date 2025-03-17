@@ -20,8 +20,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post('signUp')
-  create(@Body() createUserDto: CreateUserDto): Promise<ReponseUser> {
+  create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
+  }
+
+  @Post('verify')
+  verifyAndCreate(@Body() body: { token: string }) {
+    return this.usersService.verifyAndCreateAccount(body.token);
   }
 
   @Post('signIn')
@@ -38,6 +43,7 @@ export class UsersController {
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
   }
+
   @UseGuards(AuthGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
