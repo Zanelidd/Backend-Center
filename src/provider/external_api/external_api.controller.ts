@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ExternalApiService } from './external_api.service';
 
 @Controller('external_api')
@@ -10,10 +10,10 @@ export class ExternalApiController {
     return this.externalApiService.findAll();
   }
 
-  //@Get(':id')
-  //findOne(@Param('id') id: string) {
-  //return this.externalApi.findOne();
-  //}
+  @Get('/cards/:id')
+  findOne(@Param('id') id: string) {
+    return this.externalApiService.findOne(id);
+  }
 
   @Post('/searchCard')
   findMany(@Body('name') name: string) {
