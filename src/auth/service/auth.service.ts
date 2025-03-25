@@ -54,6 +54,7 @@ export class AuthService {
         secret: this.configService.get<string>('TOKEN_SECRET'),
       });
     } catch (error) {
+      console.error(error);
       throw new UnauthorizedException('Token invalide ou expiré');
     }
   }

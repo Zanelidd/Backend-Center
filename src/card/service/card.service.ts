@@ -20,7 +20,6 @@ export class CardService {
   }
 
   async findAllUserCards(userId: number): Promise<Card[]> {
-    console.log('findAllUserCards', userId);
     const cards = await this.prismaService.card.findMany({
       where: { userId },
     });
