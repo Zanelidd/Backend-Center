@@ -26,9 +26,9 @@ export class CardController {
     return new ResponseCardDto(result);
   }
 
-  @Get(':id')
-  findAllUserCards(@Param('id') id: string): Promise<Card[]> {
-    return this.cardService.findAllUserCards(+id);
+  @Get(':userId')
+  findAllUserCards(@Param('userId') userId: string): Promise<Card[]> {
+    return this.cardService.findAllUserCards(+userId);
   }
 
   @Patch(':id')

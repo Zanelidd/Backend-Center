@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UpdateCardDto } from '../dto/update-card.dto';
 import { CreateCardDto } from '../dto/create-card.dto';
-import { PrismaService } from 'src/provider/database/prisma/prisma.service';
+import { PrismaService } from '../../provider/database/prisma/prisma.service';
 
 import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
@@ -29,6 +29,10 @@ export class CardService {
         return PokemonTCG.findCardByID(card.remoteId);
       }),
     );
+  }
+
+  async findCardById(id: string): Promise<Card> {
+    return PokemonTCG.findCardByID(id);
   }
 
   async update(id: number, updateCardDto: UpdateCardDto) {
