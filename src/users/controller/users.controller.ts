@@ -12,7 +12,6 @@ import { UsersService } from '../service/users.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { loginDto } from '../dto/login.dto';
-import { ReponseUser } from '../dto/response-user.dto';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 
 @Controller('users')
@@ -29,6 +28,11 @@ export class UsersController {
     return this.usersService.verifyAndCreateAccount(body.token);
   }
 
+  @Post('verifyTokenModifyPassword')
+  verifyTokenModify(@Body() body: { token: string }) {
+    return this.usersService.verifyTokenModifyPassword(body.token);
+  }
+
   @Post('signIn')
   login(@Body() loginDto: loginDto) {
     return this.usersService.signIn(loginDto);
@@ -42,6 +46,11 @@ export class UsersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(+id);
+  }
+
+  @Post('/findForModifyPassword')
+  findOneByMail(@Body() form: { email: string }) {
+    return this.usersService.findOneByMail(form.email);
   }
 
   @UseGuards(AuthGuard)

@@ -1,9 +1,9 @@
 import {
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
-  ConflictException,
 } from '@nestjs/common';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -16,6 +16,16 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class UsersService {
+  transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
   constructor(
     private prismaService: PrismaService,
     private authService: AuthService,
@@ -29,11 +39,6 @@ export class UsersService {
         OR: [{ username }, { email }],
       },
     });
-
-    if (existingUser) {
-      throw new UnauthorizedException('This email or username already exists');
-    }
-
     const hashingOptions = {
       type: argon2.argon2id,
       memoryCost: 2 ** 16,
@@ -50,24 +55,14 @@ export class UsersService {
       action: 'register',
     });
 
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
     const mailOptions = {
-      from: `"Pokemon Center" <${process.env.EMAIL_USER}>`,
+      from: `"Pokémon Center" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Pokemon Center Account Verification',
       html: `
-        <h1>Welcome to Pokemon Center!</h1>
+        <h1>Welcome to Pokémon Center!</h1>
         <p>To verify your account, please click on the link below:</p>
         <a href="${verificationLink}">Verify my account</a>
         <p>This link will expire in 24 hours.</p>
@@ -75,7 +70,12 @@ export class UsersService {
     };
 
     try {
-      await transporter.sendMail(mailOptions);
+      if (existingUser) {
+        return {
+          message: 'Verification email sent. Please check your inbox.',
+        };
+      }
+      await this.transporter.sendMail(mailOptions);
       return {
         message: 'Verification email sent. Please check your inbox.',
       };
@@ -129,12 +129,38 @@ export class UsersService {
       } catch (error) {
         if (error.code === 'P2002') {
           const field = error.meta?.target?.[0];
-          throw new ConflictException(
+          new ConflictException(
             `A user with this ${field === 'username' ? 'username' : 'email'} ready exist`,
           );
         }
         throw error;
       }
+    } catch (error) {
+      console.error('Verification error:', error);
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error during verification');
+    }
+  }
+
+  async verifyTokenModifyPassword(token: string) {
+    try {
+      const decodedToken = this.authService.verifyToken(token);
+
+      if (
+        !decodedToken ||
+        !decodedToken.action ||
+        decodedToken.action !== 'change password'
+      ) {
+        throw new UnauthorizedException('Invalid Token');
+      }
+
+      const { username, email } = decodedToken;
+      return { username, email };
     } catch (error) {
       console.error('Verification error:', error);
       if (
@@ -188,6 +214,47 @@ export class UsersService {
       throw new InternalServerErrorException(
         error.message,
         'Failed to find user',
+      );
+    }
+  }
+
+  async findOneByMail(email: string) {
+    const userFind = await this.prismaService.user.findUnique({
+      where: { email: email },
+    });
+
+    if (!userFind) {
+      throw new InternalServerErrorException('User not found');
+    }
+
+    const verificationToken = this.authService.generateToken({
+      email: email,
+      action: 'change password',
+    });
+
+    const verificationLink = `${process.env.FRONTEND_URL}/forget-pass?token=${verificationToken}`;
+
+    const mailOptions = {
+      from: `"Pokémon Center" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Pokemon Center Account Verification',
+      html: `
+        <h1>Welcome to Pokémon Center!</h1>
+        <p>To change your password, please click on the link below:</p>
+        <a href="${verificationLink}">Change my password:</a>
+        <p>This link will expire in 24 hours.</p>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      return {
+        message: 'Verification email sent. Please check your inbox.',
+      };
+    } catch (error) {
+      console.error('Email sending error:', error);
+      throw new InternalServerErrorException(
+        'Error sending verification email',
       );
     }
   }
