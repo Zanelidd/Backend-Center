@@ -38,9 +38,6 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd /home/dede/PokemonCenter/backend
-            git pull
-            npm ci
-            npm run build
-            pm2 restart main
+          source: "build/*"
+          target: "/home/dede/PokemonCenter/backend"
+          strip_components: 1
