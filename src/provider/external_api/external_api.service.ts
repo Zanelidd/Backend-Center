@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import type { Card, Set } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import * as process from 'node:process';
 
 @Injectable()
 export class ExternalApiService {
@@ -27,6 +28,7 @@ export class ExternalApiService {
       this.httpService
         .get(`${process.env.API_URL}/cards`, {
           params: { q: `name:${name}` },
+          headers: { 'x-Api-Key': process.env.TCG_API_KEY },
         })
         .pipe(
           catchError((error: AxiosError) => {
@@ -43,6 +45,7 @@ export class ExternalApiService {
       this.httpService
         .get(`${process.env.API_URL}/cards`, {
           params: { q: `set.id:${setId}` },
+          headers: { 'x-Api-Key': process.env.TCG_API_KEY },
         })
         .pipe(
           catchError((error: AxiosError) => {

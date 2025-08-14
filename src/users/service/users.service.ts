@@ -70,11 +70,10 @@ export class UsersService {
     };
 
     try {
-      if (existingUser) {
-        return {
-          message: 'Verification email sent. Please check your inbox.',
-        };
+      if (!existingUser) {
+        return new UnauthorizedException();
       }
+
       await this.transporter.sendMail(mailOptions);
       return {
         message: 'Verification email sent. Please check your inbox.',
