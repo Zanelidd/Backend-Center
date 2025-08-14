@@ -22,7 +22,6 @@ export class ExternalApiController {
 
   @Post('/cards')
   findManyBySet(@Body('setId') setId: string) {
-    console.log(setId);
     return this.externalApiService.findManyBySet(setId);
   }
 }
