@@ -39,6 +39,11 @@ export class UsersController {
   login(@Body() loginDto: loginDto) {
     return this.usersService.signIn(loginDto);
   }
+  @UseGuards(AuthGuard)
+  @Get('me')
+  getProfile(@CurrentUser() user: any) {
+    return user;
+  }
 
   @UseGuards(AuthGuard)
   @Get()
