@@ -54,6 +54,8 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
+            nvm use --lts || nvm use 18
+            
             cd /home/dede/PokemonCenter/back
             
             echo "Nettoyage des anciens modules..."
