@@ -1,18 +1,48 @@
-- name: Build project
-  run: npm run build
-  if: success()
+name: Nest CI/CD
 
-- name: Deploy to VPS
-  if: success() && github.event_name == 'push'
-  uses: appleboy/ssh-action@master
-  with:
-    host: ${{ secrets.VPS_HOST }}
-    username: ${{ secrets.VPS_USERNAME }}
-    key: ${{ secrets.VPS_SSH_KEY }}
-    script: |
-      cd /home/dede/PokemonCenter/backend
-      git pull origin main
-      npm ci
-      npm run build
-      npx prisma migrate deploy
-      pm2 restart backend || pm2 start dist/main.js --name "backend"
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+        if: success()
+
+      - name: Build project
+        run: npm run build
+        if: success()
+
+      - name: Deploy to VPS
+        if: success() && github.event_name == 'push'
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/dede/PokemonCenter/backend
+
+            git pull origin main
+            npm ci
+            npm run build
+            npx prisma migrate deploy
+            pm2 restart backend || pm2 start dist/main.js --name "back"
