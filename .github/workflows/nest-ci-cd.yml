@@ -54,13 +54,12 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
-            nvm use --lts || nvm use 18
+            nvm use --lts || nvm use 24 || nvm use 18
             
             cd /home/dede/PokemonCenter/back
             
             echo "Nettoyage des anciens modules..."
             rm -rf node_modules
-            
             npm ci --omit=dev
             
             echo "Vérification de la base de données..."
@@ -68,4 +67,5 @@ jobs:
             
                         
             echo "Redémarrage du serveur..."
-            $PM2_BIN restart backend || $PM2_BIN start dist/main.js --name "backend"
+            hash -r
+            $PM2_BIN restart back || $PM2_BIN start dist/main.js --name "back"
