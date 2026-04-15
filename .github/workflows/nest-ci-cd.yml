@@ -66,8 +66,6 @@ jobs:
             echo "Vérification de la base de données..."
             npx prisma migrate deploy || echo "Pas de migrations à appliquer"
             
-            
-            PM2_BIN=$(which pm2 || echo "$HOME/.nvm/versions/node/$(node -v)/bin/pm2")
-            
+                        
             echo "Redémarrage du serveur..."
             $PM2_BIN restart backend || $PM2_BIN start dist/main.js --name "backend"
