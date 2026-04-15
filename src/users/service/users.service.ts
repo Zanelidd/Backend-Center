@@ -185,7 +185,13 @@ export class UsersService {
 
   async findAll() {
     try {
-      const usersFind = await this.prismaService.user.findMany();
+      const usersFind = await this.prismaService.user.findMany({
+        select: {
+          id: true,
+          email: true,
+          username: true,
+        },
+      });
       if (!usersFind) {
         new InternalServerErrorException('Users not found');
       }
@@ -204,6 +210,11 @@ export class UsersService {
     try {
       const userFind = await this.prismaService.user.findUnique({
         where: { id: id },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+        },
       });
       if (!userFind) {
         throw new InternalServerErrorException('User not found');

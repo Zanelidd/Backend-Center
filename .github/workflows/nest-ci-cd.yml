@@ -1,20 +1,18 @@
-- name: Deploy to VPS
-        if: success() && github.event_name == 'push'
-        uses: 
-        appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
+- name: Build project
+  run: npm run build
+  if: success()
 
-            cd /home/dede/PokemonCenter/back
-            
-            git pull origin main
-            
-            npm ci
-            npm run build
-            
-            npx prisma migrate deploy
-            
-            pm2 restart backend || pm2 start dist/main.js --name "backend"
+- name: Deploy to VPS
+  if: success() && github.event_name == 'push'
+  uses: appleboy/ssh-action@master
+  with:
+    host: ${{ secrets.VPS_HOST }}
+    username: ${{ secrets.VPS_USERNAME }}
+    key: ${{ secrets.VPS_SSH_KEY }}
+    script: |
+      cd /home/dede/PokemonCenter/backend
+      git pull origin main
+      npm ci
+      npm run build
+      npx prisma migrate deploy
+      pm2 restart backend || pm2 start dist/main.js --name "backend"

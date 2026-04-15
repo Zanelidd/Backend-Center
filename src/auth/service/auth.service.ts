@@ -18,7 +18,10 @@ export class AuthService {
   async login(
     password: string,
     user: user,
-  ): Promise<{ access_token: string; userId: number; username: string }> {
+  ): Promise<{ access_token: string; email: string; username: string }> {
+    if (!user) {
+      throw new NotFoundException();
+    }
     if (!user.password) {
       throw new NotFoundException({
         message: `Password not found`,
@@ -38,7 +41,11 @@ export class AuthService {
       expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
     });
 
-    return { access_token, username: user.username, userId: user.id };
+    return { access_token, username: user.username, email: user.email };
+  }
+
+  async me(user: user): Promise<{ username: string; userId: number }> {
+    return { username: user.username, userId: user.id };
   }
 
   generateToken(payload: any): string {
@@ -49,13 +56,20 @@ export class AuthService {
   }
 
   verifyToken(token: string): any {
-    try {
-      return this.jwtServices.verify(token, {
-        secret: this.configService.get<string>('TOKEN_SECRET'),
-      });
-    } catch (error) {
-      console.error(error);
-      throw new UnauthorizedException('Token invalide ou expiré');
+    const tokenVerify = this.jwtServices.verify(token, {
+      secret: this.configService.get<string>('TOKEN_SECRET'),
+    });
+
+    if (!tokenVerify) {
+      throw new UnauthorizedException();
     }
+    return tokenVerify;
+
+    /*try {
+       return 
+     } catch (error) {
+ 
+       return new UnauthorizedException({ error });
+     }*/
   }
 }
