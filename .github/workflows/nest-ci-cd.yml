@@ -49,23 +49,17 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            set -e   
-          
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            
-            nvm use --lts || nvm use 24 || nvm use 18
+            NODE_BIN="$HOME/.nvm/versions/node/v24.14.1/bin"
             
             cd /home/dede/PokemonCenter/back
             
-            echo "Nettoyage des anciens modules..."
+            echo "Installation des dépendances..."
             rm -rf node_modules
-            npm ci --omit=dev
+            $NODE_BIN/npm ci --omit=dev
             
-            echo "Vérification de la base de données..."
-            npx prisma migrate deploy || echo "Pas de migrations à appliquer"
+            echo "Synchro Base de données..."
+            $NODE_BIN/npx prisma db push
             
                         
             echo "Redémarrage du serveur..."
-            hash -r
-            $PM2_BIN restart back || $PM2_BIN start dist/main.js --name "back"
+            $NODE_BIN/pm2 restart back || $NODE_BIN/pm2 start dist/main.js --name "back"
