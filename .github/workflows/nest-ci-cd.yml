@@ -39,9 +39,10 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /home/dede/PokemonCenter/back
+            cd /home/dede/PokemonCenter/backend
+
             git pull origin main
             npm ci
             npm run build
-            # npx prisma migrate deploy
+            npx prisma migrate deploy
             pm2 restart backend || pm2 start dist/main.js --name "back"
