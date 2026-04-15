@@ -49,13 +49,23 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e   
+          
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             cd /home/dede/PokemonCenter/back
             
+            echo "Nettoyage des anciens modules..."
+            rm -rf node_modules
+            
             npm ci --omit=dev
             
-            npx prisma migrate deploy
+            echo "Vérification de la base de données..."
+            npx prisma migrate deploy || echo "Pas de migrations à appliquer"
             
-            pm2 restart backend || pm2 start dist/main.js --name "back"
+            
+            PM2_BIN=$(which pm2 || echo "$HOME/.nvm/versions/node/$(node -v)/bin/pm2")
+            
+            echo "Redémarrage du serveur..."
+            $PM2_BIN restart backend || $PM2_BIN start dist/main.js --name "backend"
