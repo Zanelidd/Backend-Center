@@ -34,11 +34,6 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<{ message: string }> {
     const { username, email, password } = createUserDto;
 
-    const existingUser = await this.prismaService.user.findFirst({
-      where: {
-        OR: [{ username }, { email }],
-      },
-    });
     const hashingOptions = {
       type: argon2.argon2id,
       memoryCost: 2 ** 16,
@@ -68,10 +63,14 @@ export class UsersService {
         <p>This link will expire in 24 hours.</p>
       `,
     };
-
+    const existingUser = await this.prismaService.user.findFirst({
+      where: {
+        OR: [{ username }, { email }],
+      },
+    });
     try {
-      if (!existingUser) {
-        return new UnauthorizedException();
+      if (existingUser) {
+        throw new ConflictException('Username or email already in use.');
       }
 
       await this.transporter.sendMail(mailOptions);

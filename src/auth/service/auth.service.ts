@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { user } from '@prisma/client';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -17,8 +17,13 @@ export class AuthService {
 
   async login(
     password: string,
-    user: user,
-  ): Promise<{ access_token: string; email: string; username: string }> {
+    user: User,
+  ): Promise<{
+    access_token: string;
+    email: string;
+    username: string;
+    userId: number;
+  }> {
     if (!user) {
       throw new NotFoundException();
     }
@@ -40,11 +45,15 @@ export class AuthService {
       secret: this.configService.get<string>('TOKEN_SECRET'),
       expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
     });
-
-    return { access_token, username: user.username, email: user.email };
+    return {
+      access_token,
+      username: user.username,
+      email: user.email,
+      userId: user.id,
+    };
   }
 
-  async me(user: user): Promise<{ username: string; userId: number }> {
+  async me(user: User): Promise<{ username: string; userId: number }> {
     return { username: user.username, userId: user.id };
   }
 

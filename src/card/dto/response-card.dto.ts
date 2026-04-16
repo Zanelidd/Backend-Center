@@ -1,7 +1,7 @@
-import { card } from '@prisma/client';
+import { Card } from '@prisma/client';
 
 export class ResponseCardDto {
-  constructor(card: card) {
+  constructor(card: Card) {
     this.id = card.id;
     this.cardId = card.remoteId;
   }

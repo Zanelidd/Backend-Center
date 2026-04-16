@@ -51,11 +51,14 @@ jobs:
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use --lts
+            
             
             cd /home/dede/PokemonCenter/back
             
+                      
             npm ci --omit=dev
+            npx prisma db push
             
-            npx prisma migrate deploy
             
-            pm2 restart backend || pm2 start dist/main.js --name "back"
+            pm2 restart back || pm2 start dist/main.js --name "back"
