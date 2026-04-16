@@ -1,10 +1,10 @@
-import { user } from '@prisma/client';
+import { User } from '@prisma/client';
 
 export class ReponseUser {
   userId: number;
   username: string;
 
-  constructor(user: Omit<user, 'password'>) {
+  constructor(user: Omit<User, 'password'>) {
     this.userId = user.id;
     this.username = user.username;
   }
