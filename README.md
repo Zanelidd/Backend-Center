@@ -18,7 +18,6 @@
 | ORM | Prisma |
 | Database | MySQL |
 | Authentication | JWT + Argon2 |
-| HTTP Client | Axios |
 | Pokémon API | pokemon-tcg-sdk-typescript |
 | Emailing | Nodemailer |
 | Validation | class-validator + class-transformer |
