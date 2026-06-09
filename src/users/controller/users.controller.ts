@@ -51,14 +51,14 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard)
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
-  }
-
-  @UseGuards(AuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: { sub: number },
+  ) {
+    if (user.sub !== +id) {
+      throw new ForbiddenException();
+    }
     return this.usersService.findOne(+id);
   }
 
