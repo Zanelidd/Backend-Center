@@ -8,6 +8,11 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { User } from '@prisma/client';
 
+type AccessTokenPayload = { sub: number; username: string };
+type RegisterTokenPayload = { username: string; email: string; hashPass: string; action: 'register' };
+type ChangePasswordTokenPayload = { email: string; action: 'change password' };
+type TokenPayload = AccessTokenPayload | RegisterTokenPayload | ChangePasswordTokenPayload;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -57,14 +62,14 @@ export class AuthService {
     return { username: user.username, userId: user.id };
   }
 
-  generateToken(payload: any): string {
+  generateToken(payload: TokenPayload): string {
     return this.jwtServices.sign(payload, {
       secret: this.configService.get<string>('TOKEN_SECRET'),
       expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
     });
   }
 
-  verifyToken(token: string): any {
+  verifyToken(token: string): Record<string, unknown> {
     const tokenVerify = this.jwtServices.verify(token, {
       secret: this.configService.get<string>('TOKEN_SECRET'),
     });
@@ -73,12 +78,5 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     return tokenVerify;
-
-    /*try {
-       return 
-     } catch (error) {
- 
-       return new UnauthorizedException({ error });
-     }*/
   }
 }

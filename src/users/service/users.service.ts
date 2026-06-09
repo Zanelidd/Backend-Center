@@ -34,11 +34,21 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<{ message: string }> {
     const { username, email, password } = createUserDto;
 
+    const existingUser = await this.prismaService.user.findFirst({
+      where: {
+        OR: [{ username }, { email }],
+      },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Username or email already in use.');
+    }
+
     const hashingOptions = {
       type: argon2.argon2id,
       memoryCost: 2 ** 16,
       time: 5,
-      parellelism: 1,
+      parallelism: 1,
     };
 
     const hashPass = await argon2.hash(password, hashingOptions);
@@ -63,16 +73,8 @@ export class UsersService {
         <p>This link will expire in 24 hours.</p>
       `,
     };
-    const existingUser = await this.prismaService.user.findFirst({
-      where: {
-        OR: [{ username }, { email }],
-      },
-    });
-    try {
-      if (existingUser) {
-        throw new ConflictException('Username or email already in use.');
-      }
 
+    try {
       await this.transporter.sendMail(mailOptions);
       return {
         message: 'Verification email sent. Please check your inbox.',
@@ -99,7 +101,7 @@ export class UsersService {
         throw new UnauthorizedException('Invalid Token');
       }
 
-      const { username, email, hashPass } = decodedToken;
+      const { username, email, hashPass } = decodedToken as { username: string; email: string; hashPass: string };
 
       try {
         const createdUser = await this.prismaService.user.create({
@@ -112,7 +114,6 @@ export class UsersService {
             id: true,
             username: true,
             email: true,
-            password: true,
           },
         });
 
@@ -175,10 +176,6 @@ export class UsersService {
     const findUser = await this.prismaService.user.findUniqueOrThrow({
       where: { username: loginDto.username },
     });
-
-    if (!findUser) {
-      throw new NotFoundException(`User ${loginDto.username} not Found`);
-    }
     return this.authService.login(loginDto.password, findUser);
   }
 
@@ -191,9 +188,6 @@ export class UsersService {
           username: true,
         },
       });
-      if (!usersFind) {
-        new InternalServerErrorException('Users not found');
-      }
       return usersFind.map((user) => {
         return new ReponseUser(user);
       });
@@ -206,25 +200,18 @@ export class UsersService {
   }
 
   async findOne(id: number) {
-    try {
-      const userFind = await this.prismaService.user.findUnique({
-        where: { id: id },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-        },
-      });
-      if (!userFind) {
-        throw new InternalServerErrorException('User not found');
-      }
-      return new ReponseUser(userFind);
-    } catch (error) {
-      throw new InternalServerErrorException(
-        error.message,
-        'Failed to find user',
-      );
+    const userFind = await this.prismaService.user.findUnique({
+      where: { id: id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+      },
+    });
+    if (!userFind) {
+      throw new NotFoundException('User not found');
     }
+    return new ReponseUser(userFind);
   }
 
   async findOneByMail(email: string) {
