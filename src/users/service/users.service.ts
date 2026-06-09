@@ -127,8 +127,8 @@ export class UsersService {
       } catch (error) {
         if (error.code === 'P2002') {
           const field = error.meta?.target?.[0];
-          new ConflictException(
-            `A user with this ${field === 'username' ? 'username' : 'email'} ready exist`,
+          throw new ConflictException(
+            `A user with this ${field === 'username' ? 'username' : 'email'} already exists`,
           );
         }
         throw error;
