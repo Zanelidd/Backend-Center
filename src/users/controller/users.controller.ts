@@ -15,26 +15,31 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 import { loginDto } from '../dto/login.dto';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @UseGuards(ThrottlerGuard)
   @Post('signUp')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('verify')
   verifyAndCreate(@Body() body: { token: string }) {
     return this.usersService.verifyAndCreateAccount(body.token);
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('verifyTokenModifyPassword')
   verifyTokenModify(@Body() body: { token: string }) {
     return this.usersService.verifyTokenModifyPassword(body.token);
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('signIn')
   login(@Body() loginDto: loginDto) {
     return this.usersService.signIn(loginDto);
@@ -57,6 +62,7 @@ export class UsersController {
     return this.usersService.findOne(+id);
   }
 
+  @UseGuards(ThrottlerGuard)
   @UseGuards(AuthGuard)
   @Post('/findForModifyPassword')
   findOneByMail(@Body() form: { email: string }) {

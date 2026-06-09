@@ -8,9 +8,20 @@ import { CardModule } from './card/card.module';
 import { PrismaModule } from './provider/database/prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
 import { ExternalApiModule } from './provider/external_api/external_api.module';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
     AuthModule,
     UsersModule,
     AppConfigModule,
