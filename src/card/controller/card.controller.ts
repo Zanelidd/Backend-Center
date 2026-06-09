@@ -27,7 +27,7 @@ export class CardController {
   }
 
   @Get(':userId')
-  findAllUserCards(@Param('userId') userId: string): Promise<Card[]> {
+  findAllUserCards(@Param('userId') userId: string): Promise<(Card & { collectionId: number })[]> {
     return this.cardService.findAllUserCards(+userId);
   }
 

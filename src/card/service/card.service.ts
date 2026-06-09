@@ -19,16 +19,22 @@ export class CardService {
     });
   }
 
-  async findAllUserCards(userId: number): Promise<Card[]> {
-    const cards = await this.prismaService.card.findMany({
+  async findAllUserCards(userId: number): Promise<(Card & { collectionId: number })[]> {
+    const dbCards = await this.prismaService.card.findMany({
       where: { userId },
     });
 
-    return Promise.all(
-      cards.map((card) => {
-        return PokemonTCG.findCardByID(card.remoteId);
-      }),
+    const results = await Promise.allSettled(
+      dbCards.map((dbCard) => PokemonTCG.findCardByID(dbCard.remoteId)),
     );
+
+    return results
+      .map((result, index) => ({ result, dbCard: dbCards[index] }))
+      .filter(({ result }) => result.status === 'fulfilled')
+      .map(({ result, dbCard }) => ({
+        ...(result as PromiseFulfilledResult<Card>).value,
+        collectionId: dbCard.id,
+      }));
   }
 
   async findCardById(id: string): Promise<Card> {
