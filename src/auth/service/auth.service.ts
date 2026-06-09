@@ -47,8 +47,8 @@ export class AuthService {
 
     const payload = { sub: user.id, username: user.username };
     const access_token = this.jwtServices.sign(payload, {
-      secret: this.configService.get<string>('TOKEN_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
+      secret: this.configService.getOrThrow<string>('TOKEN_SECRET'),
+      expiresIn: this.configService.getOrThrow<string>('JWT_EXPIRATION'),
     });
     return {
       access_token,
@@ -64,14 +64,14 @@ export class AuthService {
 
   generateToken(payload: TokenPayload): string {
     return this.jwtServices.sign(payload, {
-      secret: this.configService.get<string>('TOKEN_SECRET'),
-      expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
+      secret: this.configService.getOrThrow<string>('TOKEN_SECRET'),
+      expiresIn: this.configService.getOrThrow<string>('JWT_EXPIRATION'),
     });
   }
 
   verifyToken(token: string): Record<string, unknown> {
     const tokenVerify = this.jwtServices.verify(token, {
-      secret: this.configService.get<string>('TOKEN_SECRET'),
+      secret: this.configService.getOrThrow<string>('TOKEN_SECRET'),
     });
 
     if (!tokenVerify) {

@@ -37,8 +37,8 @@ export class CardService {
       }));
   }
 
-  async findCardById(id: string): Promise<Card> {
-    return PokemonTCG.findCardByID(id);
+  async findOne(id: number) {
+    return this.prismaService.card.findUnique({ where: { id } });
   }
 
   async update(id: number, updateCardDto: UpdateCardDto) {

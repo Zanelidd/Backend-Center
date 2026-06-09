@@ -16,6 +16,7 @@ import { loginDto } from '../dto/login.dto';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { TokenDto } from '../dto/token.dto';
 
 @Controller('users')
 export class UsersController {
@@ -29,13 +30,13 @@ export class UsersController {
 
   @UseGuards(ThrottlerGuard)
   @Post('verify')
-  verifyAndCreate(@Body() body: { token: string }) {
+  verifyAndCreate(@Body() body: TokenDto) {
     return this.usersService.verifyAndCreateAccount(body.token);
   }
 
   @UseGuards(ThrottlerGuard)
   @Post('verifyTokenModifyPassword')
-  verifyTokenModify(@Body() body: { token: string }) {
+  verifyTokenModify(@Body() body: TokenDto) {
     return this.usersService.verifyTokenModifyPassword(body.token);
   }
 
