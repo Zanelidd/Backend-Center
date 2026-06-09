@@ -46,8 +46,8 @@ export class UsersController {
   }
   @UseGuards(AuthGuard)
   @Get('me')
-  getProfile(@CurrentUser() user: any) {
-    return user;
+  getProfile(@CurrentUser() user: { sub: number; username: string }) {
+    return { userId: user.sub, username: user.username };
   }
 
   @UseGuards(AuthGuard)

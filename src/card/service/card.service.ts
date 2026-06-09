@@ -48,9 +48,9 @@ export class CardService {
     });
   }
 
-  async remove(id: string) {
+  async remove(remoteId: string, userId: number) {
     return this.prismaService.card.delete({
-      where: { remoteId: id },
+      where: { remoteId_userId: { remoteId, userId } },
     });
   }
 }

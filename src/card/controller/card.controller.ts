@@ -14,6 +14,7 @@ import { CreateCardDto } from '../dto/create-card.dto';
 import { ResponseCardDto } from '../dto/response-card.dto';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { AuthGuard } from '../../auth/guard/auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 
 @UseGuards(AuthGuard)
 @Controller('card')
@@ -37,7 +38,7 @@ export class CardController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.cardService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: { sub: number }) {
+    return this.cardService.remove(id, user.sub);
   }
 }
