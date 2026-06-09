@@ -3,8 +3,8 @@ import { Card } from '@prisma/client';
 export class ResponseCardDto {
   constructor(card: Card) {
     this.id = card.id;
-    this.cardId = card.remoteId;
+    this.remoteId = card.remoteId;
   }
   id: number;
-  cardId: string;
+  remoteId: string;
 }
