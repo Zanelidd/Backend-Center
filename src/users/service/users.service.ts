@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { CreateUserDto } from '../dto/create-user.dto';
 import * as argon2 from 'argon2';
@@ -16,20 +17,23 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class UsersService {
-  transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
+  private readonly transporter: nodemailer.Transporter;
 
   constructor(
     private prismaService: PrismaService,
     private authService: AuthService,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: this.configService.getOrThrow<string>('EMAIL_USER'),
+        pass: this.configService.getOrThrow<string>('EMAIL_PASSWORD'),
+      },
+    });
+  }
 
   async create(createUserDto: CreateUserDto): Promise<{ message: string }> {
     const { username, email, password } = createUserDto;
@@ -60,10 +64,10 @@ export class UsersService {
       action: 'register',
     });
 
-    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const verificationLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
 
     const mailOptions = {
-      from: `"Pokémon Center" <${process.env.EMAIL_USER}>`,
+      from: `"Pokémon Center" <${this.configService.getOrThrow<string>('EMAIL_USER')}>`,
       to: email,
       subject: 'Pokemon Center Account Verification',
       html: `
@@ -228,10 +232,10 @@ export class UsersService {
       action: 'change password',
     });
 
-    const verificationLink = `${process.env.FRONTEND_URL}/forget-pass?token=${verificationToken}`;
+    const verificationLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/forget-pass?token=${verificationToken}`;
 
     const mailOptions = {
-      from: `"Pokémon Center" <${process.env.EMAIL_USER}>`,
+      from: `"Pokémon Center" <${this.configService.getOrThrow<string>('EMAIL_USER')}>`,
       to: email,
       subject: 'Pokemon Center Account Verification',
       html: `
