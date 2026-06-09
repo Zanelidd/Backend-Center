@@ -276,10 +276,12 @@ export class UsersService {
     return this.prismaService.user.update({
       where: { id: id },
       data: { ...updateUserDto },
+      select: { id: true, username: true, email: true },
     });
   }
 
-  remove(id: number) {
-    return this.prismaService.user.delete({ where: { id: id } });
+  async remove(id: number) {
+    await this.prismaService.user.delete({ where: { id: id } });
+    return { message: 'Account deleted' };
   }
 }
