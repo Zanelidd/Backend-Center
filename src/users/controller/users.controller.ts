@@ -63,7 +63,6 @@ export class UsersController {
   }
 
   @UseGuards(ThrottlerGuard)
-  @UseGuards(AuthGuard)
   @Post('/findForModifyPassword')
   findOneByMail(@Body() form: { email: string }) {
     return this.usersService.findOneByMail(form.email);

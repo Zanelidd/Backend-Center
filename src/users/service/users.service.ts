@@ -233,7 +233,7 @@ export class UsersService {
     });
 
     if (!userFind) {
-      throw new InternalServerErrorException('User not found');
+      return { message: 'If this email is registered, you will receive an email.' };
     }
 
     const verificationToken = this.authService.generateToken({
