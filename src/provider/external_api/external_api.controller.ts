@@ -1,11 +1,10 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ExternalApiService } from './external_api.service';
-import { AuthGuard } from '../../auth/guard/auth.guard';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { SearchCardDto } from './dto/search-card.dto';
 import { SetCardsDto } from './dto/set-cards.dto';
 
-@UseGuards(AuthGuard, ThrottlerGuard)
+@UseGuards(ThrottlerGuard)
 @Controller('external_api')
 export class ExternalApiController {
   constructor(private readonly externalApiService: ExternalApiService) {}
