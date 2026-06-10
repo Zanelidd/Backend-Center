@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { UpdateCardDto } from '../dto/update-card.dto';
 import { CreateCardDto } from '../dto/create-card.dto';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
@@ -11,12 +11,19 @@ export class CardService {
   constructor(private prismaService: PrismaService) {}
 
   async create(cardData: CreateCardDto, userId: number) {
-    return this.prismaService.card.create({
-      data: {
-        remoteId: cardData.cardId,
-        userId,
-      },
-    });
+    try {
+      return await this.prismaService.card.create({
+        data: {
+          remoteId: cardData.cardId,
+          userId,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('Card already in collection');
+      }
+      throw error;
+    }
   }
 
   async findAllUserCards(userId: number): Promise<(Card & { collectionId: number })[]> {

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CardService } from './card.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
+import { ConflictException } from '@nestjs/common';
 
 jest.mock('pokemon-tcg-sdk-typescript', () => ({
   PokemonTCG: {
@@ -88,6 +89,14 @@ describe('CardService', () => {
       expect(mockPrismaService.card.create).toHaveBeenCalledWith({
         data: { remoteId: 'xy7-54', userId: authenticatedUserId },
       });
+    });
+
+    it('should throw ConflictException when card is already in collection (P2002)', async () => {
+      mockPrismaService.card.create.mockRejectedValue({ code: 'P2002' });
+
+      await expect(service.create({ cardId: 'xy7-54' }, 42)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
