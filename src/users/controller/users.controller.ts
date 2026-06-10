@@ -20,6 +20,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { TokenDto } from '../dto/token.dto';
 import { FindByEmailDto } from '../dto/find-by-email.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -54,6 +55,12 @@ export class UsersController {
   @Post('verifyTokenModifyPassword')
   verifyTokenModify(@Body() body: TokenDto) {
     return this.usersService.verifyTokenModifyPassword(body.token);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Post('resetPassword')
+  resetPassword(@Body() body: ResetPasswordDto) {
+    return this.usersService.resetPassword(body.token, body.password);
   }
 
   @UseGuards(ThrottlerGuard)
