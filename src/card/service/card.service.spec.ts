@@ -48,6 +48,21 @@ describe('CardService', () => {
     });
   });
 
+  describe('update', () => {
+    it('should update using both id and userId to enforce ownership atomically', async () => {
+      const mockCard = { id: 1, remoteId: 'xy7-54', userId: 42 };
+      mockPrismaService.card.update.mockResolvedValue(mockCard);
+
+      const result = await service.update(1, {}, 42);
+
+      expect(result).toEqual(mockCard);
+      expect(mockPrismaService.card.update).toHaveBeenCalledWith({
+        where: { id: 1, userId: 42 },
+        data: {},
+      });
+    });
+  });
+
   describe('findOne', () => {
     it('should return a card by id', async () => {
       const mockCard = { id: 1, remoteId: 'xy7-54', userId: 1 };

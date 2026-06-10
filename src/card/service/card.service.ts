@@ -41,9 +41,9 @@ export class CardService {
     return this.prismaService.card.findUnique({ where: { id } });
   }
 
-  async update(id: number, updateCardDto: UpdateCardDto) {
+  async update(id: number, updateCardDto: UpdateCardDto, userId: number) {
     return this.prismaService.card.update({
-      where: { id: id },
+      where: { id, userId },
       data: { ...updateCardDto },
     });
   }

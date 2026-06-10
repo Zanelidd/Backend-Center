@@ -4,7 +4,6 @@ import {
   Delete,
   ForbiddenException,
   Get,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -47,13 +46,10 @@ export class CardController {
     @Body() updateCollectionDto: UpdateCardDto,
     @CurrentUser() user: { sub: number },
   ) {
-    const card = await this.cardService.findOne(+id);
-    if (!card) throw new NotFoundException();
-    if (card.userId !== user.sub) throw new ForbiddenException();
-    return this.cardService.update(+id, updateCollectionDto);
+    return this.cardService.update(+id, updateCollectionDto, user.sub);
   }
 
-
+  
   @Delete(':remoteId')
   remove(
     @Param('remoteId') remoteId: string,
