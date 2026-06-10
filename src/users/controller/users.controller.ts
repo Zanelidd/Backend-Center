@@ -17,6 +17,7 @@ import { AuthGuard } from '../../auth/guard/auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { TokenDto } from '../dto/token.dto';
+import { FindByEmailDto } from '../dto/find-by-email.dto';
 
 @Controller('users')
 export class UsersController {
@@ -65,7 +66,7 @@ export class UsersController {
 
   @UseGuards(ThrottlerGuard)
   @Post('/findForModifyPassword')
-  findOneByMail(@Body() form: { email: string }) {
+  findOneByMail(@Body() form: FindByEmailDto) {
     return this.usersService.findOneByMail(form.email);
   }
 
