@@ -9,9 +9,8 @@ import * as argon2 from 'argon2';
 import { User } from '@prisma/client';
 
 type AccessTokenPayload = { sub: number; username: string };
-type RegisterTokenPayload = { username: string; email: string; hashPass: string; action: 'register' };
 type ChangePasswordTokenPayload = { email: string; action: 'change password' };
-type TokenPayload = AccessTokenPayload | RegisterTokenPayload | ChangePasswordTokenPayload;
+type TokenPayload = AccessTokenPayload | ChangePasswordTokenPayload;
 
 @Injectable()
 export class AuthService {

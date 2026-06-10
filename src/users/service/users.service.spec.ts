@@ -37,6 +37,11 @@ describe('UsersService', () => {
       delete: jest.fn(),
       findMany: jest.fn(),
     },
+    pendingRegistration: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
   };
 
   const mockAuthService = {
@@ -80,11 +85,11 @@ describe('UsersService', () => {
     };
 
     beforeEach(() => {
-      mockAuthService.generateToken.mockReturnValue('verificationToken');
       (argon2.hash as jest.Mock).mockResolvedValue('hashedPassword');
+      mockPrismaService.pendingRegistration.create.mockResolvedValue({});
     });
 
-    it('should send verification email when user does not exist', async () => {
+    it('should store pending registration and send verification email', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue(null);
 
       const result = await service.create(mockCreateUserDto);
@@ -104,10 +109,14 @@ describe('UsersService', () => {
         mockCreateUserDto.password,
         expect.any(Object),
       );
-      expect(mockAuthService.generateToken).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'register' }),
-        'mock-value',
-      );
+      expect(mockPrismaService.pendingRegistration.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          username: mockCreateUserDto.username,
+          email: mockCreateUserDto.email,
+          hashPass: 'hashedPassword',
+          expiresAt: expect.any(Date),
+        }),
+      });
     });
 
     it('should throw ConflictException if username or email already in use', async () => {
@@ -123,27 +132,29 @@ describe('UsersService', () => {
   });
 
   describe('verifyAndCreateAccount', () => {
-    const mockToken = 'validToken';
-    const mockDecodedToken = {
+    const mockToken = 'some-uuid-token';
+    const mockPending = {
+      id: 1,
+      token: mockToken,
       username: 'testuser',
       email: 'test@example.com',
       hashPass: 'alreadyHashedPassword',
-      action: 'register',
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     };
-
     const mockCreatedUser = {
       id: 1,
-      username: mockDecodedToken.username,
-      email: mockDecodedToken.email,
+      username: mockPending.username,
+      email: mockPending.email,
     };
 
     beforeEach(() => {
-      mockAuthService.verifyToken.mockReturnValue(mockDecodedToken);
+      mockPrismaService.pendingRegistration.findUnique.mockResolvedValue(mockPending);
+      mockPrismaService.pendingRegistration.delete.mockResolvedValue({});
       mockPrismaService.user.create.mockResolvedValue(mockCreatedUser);
       mockAuthService.generateToken.mockReturnValue('newAccessToken');
     });
 
-    it('should verify token, create user, and return access token', async () => {
+    it('should look up pending row, create user, delete row, and return access token', async () => {
       const result = await service.verifyAndCreateAccount(mockToken);
 
       expect(result).toEqual({
@@ -151,18 +162,45 @@ describe('UsersService', () => {
         userId: mockCreatedUser.id,
         username: mockCreatedUser.username,
       });
-      expect(mockAuthService.verifyToken).toHaveBeenCalledWith(mockToken);
+      expect(mockPrismaService.pendingRegistration.findUnique).toHaveBeenCalledWith({
+        where: { token: mockToken },
+      });
       expect(mockPrismaService.user.create).toHaveBeenCalledWith({
         data: {
-          username: mockDecodedToken.username,
-          email: mockDecodedToken.email,
-          password: mockDecodedToken.hashPass,
+          username: mockPending.username,
+          email: mockPending.email,
+          password: mockPending.hashPass,
         },
         select: { id: true, username: true, email: true },
+      });
+      expect(mockPrismaService.pendingRegistration.delete).toHaveBeenCalledWith({
+        where: { token: mockToken },
       });
       expect(mockAuthService.generateToken).toHaveBeenCalledWith({
         sub: mockCreatedUser.id,
         username: mockCreatedUser.username,
+      });
+    });
+
+    it('should throw UnauthorizedException if token is not found', async () => {
+      mockPrismaService.pendingRegistration.findUnique.mockResolvedValue(null);
+
+      await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should delete the expired row and throw UnauthorizedException', async () => {
+      mockPrismaService.pendingRegistration.findUnique.mockResolvedValue({
+        ...mockPending,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+      await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockPrismaService.pendingRegistration.delete).toHaveBeenCalledWith({
+        where: { token: mockToken },
       });
     });
 
@@ -175,18 +213,8 @@ describe('UsersService', () => {
       );
     });
 
-    it('should throw UnauthorizedException if action is not register', async () => {
-      mockAuthService.verifyToken.mockReturnValue({ action: 'other' });
-
-      await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('should throw InternalServerErrorException if token verification throws unexpectedly', async () => {
-      mockAuthService.verifyToken.mockImplementation(() => {
-        throw new Error('Unexpected error');
-      });
+    it('should throw InternalServerErrorException on unexpected DB error', async () => {
+      mockPrismaService.user.create.mockRejectedValue(new Error('DB down'));
 
       await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
         InternalServerErrorException,

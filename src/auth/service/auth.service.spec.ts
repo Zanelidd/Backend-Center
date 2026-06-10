@@ -99,13 +99,13 @@ describe('AuthService', () => {
       mockJwtService.sign.mockReturnValue('emailToken');
 
       const result = service.generateToken(
-        { username: 'user', email: 'a@b.com', hashPass: 'h', action: 'register' },
+        { email: 'a@b.com', action: 'change password' },
         '24h',
       );
 
       expect(result).toBe('emailToken');
       expect(mockJwtService.sign).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'register' }),
+        expect.objectContaining({ action: 'change password' }),
         { secret: 'test-secret', expiresIn: '24h' },
       );
     });

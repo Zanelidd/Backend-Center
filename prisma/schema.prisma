@@ -27,3 +27,14 @@ model Card {
   @@unique([remoteId, userId])
   @@map("cards")
 }
+
+model PendingRegistration {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  username  String
+  email     String
+  hashPass  String
+  expiresAt DateTime
+
+  @@map("pending_registrations")
+}

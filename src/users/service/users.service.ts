@@ -14,6 +14,7 @@ import { loginDto } from '../dto/login.dto';
 import { AuthService } from '../../auth/service/auth.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -57,12 +58,14 @@ export class UsersService {
 
     const hashPass = await argon2.hash(password, hashingOptions);
 
-    const verificationToken = this.authService.generateToken(
-      { username, email, hashPass, action: 'register' },
-      this.configService.getOrThrow<string>('EMAIL_TOKEN_EXPIRATION'),
-    );
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const verificationLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
+    await this.prismaService.pendingRegistration.create({
+      data: { token, username, email, hashPass, expiresAt },
+    });
+
+    const verificationLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/verify-email?token=${token}`;
 
     const mailOptions = {
       from: `"Pokémon Center" <${this.configService.getOrThrow<string>('EMAIL_USER')}>`,
@@ -92,57 +95,49 @@ export class UsersService {
   async verifyAndCreateAccount(
     token: string,
   ): Promise<{ access_token: string; userId: number; username: string }> {
+    const pending = await this.prismaService.pendingRegistration.findUnique({
+      where: { token },
+    });
+
+    if (!pending) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    if (pending.expiresAt < new Date()) {
+      await this.prismaService.pendingRegistration.delete({ where: { token } });
+      throw new UnauthorizedException('Token expired');
+    }
+
     try {
-      const decodedToken = this.authService.verifyToken(token);
+      const createdUser = await this.prismaService.user.create({
+        data: {
+          username: pending.username,
+          email: pending.email,
+          password: pending.hashPass,
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+        },
+      });
 
-      if (
-        !decodedToken ||
-        !decodedToken.action ||
-        decodedToken.action !== 'register'
-      ) {
-        throw new UnauthorizedException('Invalid Token');
-      }
+      await this.prismaService.pendingRegistration.delete({ where: { token } });
 
-      const { username, email, hashPass } = decodedToken as { username: string; email: string; hashPass: string };
-
-      try {
-        const createdUser = await this.prismaService.user.create({
-          data: {
-            username,
-            email,
-            password: hashPass,
-          },
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        });
-
-        return {
-          access_token: this.authService.generateToken({
-            sub: createdUser.id,
-            username: createdUser.username,
-          }),
-          userId: createdUser.id,
+      return {
+        access_token: this.authService.generateToken({
+          sub: createdUser.id,
           username: createdUser.username,
-        };
-      } catch (error) {
-        if (error.code === 'P2002') {
-          const field = error.meta?.target?.[0];
-          throw new ConflictException(
-            `A user with this ${field === 'username' ? 'username' : 'email'} already exists`,
-          );
-        }
-        throw error;
-      }
+        }),
+        userId: createdUser.id,
+        username: createdUser.username,
+      };
     } catch (error) {
-      console.error('Verification error:', error);
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof ConflictException
-      ) {
-        throw error;
+      if (error.code === 'P2002') {
+        const field = error.meta?.target?.[0];
+        throw new ConflictException(
+          `A user with this ${field === 'username' ? 'username' : 'email'} already exists`,
+        );
       }
       throw new InternalServerErrorException('Error during verification');
     }
