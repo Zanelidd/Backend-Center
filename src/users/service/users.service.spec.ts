@@ -2,17 +2,26 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import {
+  ConflictException,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import * as nodemailer from 'nodemailer';
 import { AuthService } from '../../auth/service/auth.service';
+import { ConfigService } from '@nestjs/config';
 import { loginDto } from '../dto/login.dto';
 
 jest.mock('argon2', () => ({
   hash: jest.fn(),
   verify: jest.fn(),
+}));
+
+jest.mock('nodemailer', () => ({
+  createTransport: jest.fn().mockReturnValue({
+    sendMail: jest.fn().mockResolvedValue({}),
+  }),
 }));
 
 describe('UsersService', () => {
@@ -36,18 +45,23 @@ describe('UsersService', () => {
     login: jest.fn(),
   };
 
+  const mockConfigService = {
+    getOrThrow: jest.fn().mockReturnValue('mock-value'),
+    get: jest.fn().mockReturnValue('mock-value'),
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({
+      sendMail: jest.fn().mockResolvedValue({}),
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: AuthService,
-          useValue: mockAuthService,
-        },
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -61,23 +75,17 @@ describe('UsersService', () => {
   describe('create', () => {
     const mockCreateUserDto = {
       email: 'test@example.com',
-      password: 'password123',
+      password: 'Password1!strong',
       username: 'testuser',
     };
 
-    const mockVerificationToken = 'verificationToken';
-
     beforeEach(() => {
-      mockAuthService.generateToken.mockReturnValue(mockVerificationToken);
+      mockAuthService.generateToken.mockReturnValue('verificationToken');
+      (argon2.hash as jest.Mock).mockResolvedValue('hashedPassword');
     });
 
-    it('should send verification email successfully', async () => {
-      const mockUser = {
-        id: 1,
-        email: mockCreateUserDto.email,
-      };
-
-      mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
+    it('should send verification email when user does not exist', async () => {
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
 
       const result = await service.create(mockCreateUserDto);
 
@@ -85,18 +93,30 @@ describe('UsersService', () => {
         message: 'Verification email sent. Please check your inbox.',
       });
       expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith({
-        where: { email: mockCreateUserDto.email },
+        where: {
+          OR: [
+            { username: mockCreateUserDto.username },
+            { email: mockCreateUserDto.email },
+          ],
+        },
       });
+      expect(argon2.hash).toHaveBeenCalledWith(
+        mockCreateUserDto.password,
+        expect.any(Object),
+      );
+      expect(mockAuthService.generateToken).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'register' }),
+      );
     });
 
-    it('should throw UnauthorizedException if user already exists', async () => {
+    it('should throw ConflictException if username or email already in use', async () => {
       mockPrismaService.user.findFirst.mockResolvedValue({
         id: 1,
         email: mockCreateUserDto.email,
       });
 
       await expect(service.create(mockCreateUserDto)).rejects.toThrow(
-        UnauthorizedException,
+        ConflictException,
       );
     });
   });
@@ -106,7 +126,7 @@ describe('UsersService', () => {
     const mockDecodedToken = {
       username: 'testuser',
       email: 'test@example.com',
-      password: 'password123',
+      hashPass: 'alreadyHashedPassword',
       action: 'register',
     };
 
@@ -114,73 +134,57 @@ describe('UsersService', () => {
       id: 1,
       username: mockDecodedToken.username,
       email: mockDecodedToken.email,
-      password: 'password123',
-    };
-
-    const mockLoginResponse = {
-      access_token: 'verificationToken',
-      userId: 1,
-      username: 'testuser',
     };
 
     beforeEach(() => {
       mockAuthService.verifyToken.mockReturnValue(mockDecodedToken);
-      mockPrismaService.user.findFirst.mockResolvedValue(null);
-      (argon2.hash as jest.Mock).mockResolvedValue('hashedPassword');
       mockPrismaService.user.create.mockResolvedValue(mockCreatedUser);
-      mockAuthService.login.mockResolvedValue(mockLoginResponse);
+      mockAuthService.generateToken.mockReturnValue('newAccessToken');
     });
 
-    it('should verify and create account successfully', async () => {
+    it('should verify token, create user, and return access token', async () => {
       const result = await service.verifyAndCreateAccount(mockToken);
 
-      expect(result).toEqual(mockLoginResponse);
-      expect(mockAuthService.verifyToken).toHaveBeenCalledWith(mockToken);
-      expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith({
-        where: {
-          OR: [
-            { username: mockDecodedToken.username },
-            { email: mockDecodedToken.email },
-          ],
-        },
+      expect(result).toEqual({
+        access_token: 'newAccessToken',
+        userId: mockCreatedUser.id,
+        username: mockCreatedUser.username,
       });
-      expect(argon2.hash).toHaveBeenCalledWith(
-        mockDecodedToken.password,
-        expect.any(Object),
-      );
+      expect(mockAuthService.verifyToken).toHaveBeenCalledWith(mockToken);
       expect(mockPrismaService.user.create).toHaveBeenCalledWith({
         data: {
           username: mockDecodedToken.username,
           email: mockDecodedToken.email,
-          password: 'hashedPassword',
+          password: mockDecodedToken.hashPass,
         },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          password: true,
-        },
+        select: { id: true, username: true, email: true },
       });
-      expect(mockAuthService.login).toHaveBeenCalledWith(
-        mockDecodedToken.password,
-        mockCreatedUser,
+      expect(mockAuthService.generateToken).toHaveBeenCalledWith({
+        sub: mockCreatedUser.id,
+        username: mockCreatedUser.username,
+      });
+    });
+
+    it('should throw ConflictException if user already exists (Prisma P2002)', async () => {
+      const prismaError = { code: 'P2002', meta: { target: ['email'] } };
+      mockPrismaService.user.create.mockRejectedValue(prismaError);
+
+      await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
+        ConflictException,
       );
     });
 
-    it('should throw UnauthorizedException if user already exists', async () => {
-      mockPrismaService.user.findFirst.mockResolvedValue({
-        id: 1,
-        email: mockDecodedToken.email,
-      });
+    it('should throw UnauthorizedException if action is not register', async () => {
+      mockAuthService.verifyToken.mockReturnValue({ action: 'other' });
 
       await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('should throw UnauthorizedException if token is invalid', async () => {
+    it('should throw InternalServerErrorException if token verification throws unexpectedly', async () => {
       mockAuthService.verifyToken.mockImplementation(() => {
-        throw new Error('Invalid token');
+        throw new Error('Unexpected error');
       });
 
       await expect(service.verifyAndCreateAccount(mockToken)).rejects.toThrow(
@@ -193,7 +197,6 @@ describe('UsersService', () => {
     const mockLoginDto: loginDto = {
       username: 'testuser',
       password: 'password123',
-      email: 'test@example.com',
     };
 
     const mockUser = {
