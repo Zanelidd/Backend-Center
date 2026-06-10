@@ -258,13 +258,18 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
+    const data: { password?: string } = {};
     if (updateUserDto.password) {
-      const hashPassword = await argon2.hash(updateUserDto.password);
-      updateUserDto.password = hashPassword;
+      data.password = await argon2.hash(updateUserDto.password, {
+        type: argon2.argon2id,
+        memoryCost: 2 ** 16,
+        timeCost: 5,
+        parallelism: 1,
+      });
     }
     return this.prismaService.user.update({
-      where: { id: id },
-      data: { ...updateUserDto },
+      where: { id },
+      data,
       select: { id: true, username: true, email: true },
     });
   }

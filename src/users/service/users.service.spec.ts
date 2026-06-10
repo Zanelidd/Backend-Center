@@ -237,4 +237,42 @@ describe('UsersService', () => {
       );
     });
   });
+
+  describe('update', () => {
+    it('should hash the password and only pass explicit fields to Prisma', async () => {
+      (argon2.hash as jest.Mock).mockResolvedValue('hashedNewPassword');
+      mockPrismaService.user.update.mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
+      });
+
+      const result = await service.update(1, { password: 'NewPassword1!' });
+
+      expect(argon2.hash).toHaveBeenCalledWith('NewPassword1!', expect.any(Object));
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { password: 'hashedNewPassword' },
+        select: { id: true, username: true, email: true },
+      });
+      expect(result).toEqual({ id: 1, username: 'testuser', email: 'test@example.com' });
+    });
+
+    it('should send an empty data object when no password is provided', async () => {
+      mockPrismaService.user.update.mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
+      });
+
+      await service.update(1, {});
+
+      expect(argon2.hash).not.toHaveBeenCalled();
+      expect(mockPrismaService.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {},
+        select: { id: true, username: true, email: true },
+      });
+    });
+  });
 });
