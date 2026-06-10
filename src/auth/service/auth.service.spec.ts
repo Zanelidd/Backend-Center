@@ -19,20 +19,19 @@ describe('AuthService', () => {
 
   const mockConfigService = {
     get: jest.fn().mockReturnValue('test-secret'),
+    getOrThrow: jest.fn().mockReturnValue('test-secret'),
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+    mockConfigService.get.mockReturnValue('test-secret');
+    mockConfigService.getOrThrow.mockReturnValue('test-secret');
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        {
-          provide: JwtService,
-          useValue: mockJwtService,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
+        { provide: JwtService, useValue: mockJwtService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -49,72 +48,88 @@ describe('AuthService', () => {
       email: 'test@example.com',
       username: 'testuser',
       password: '$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$c29tZXNhbHQ',
-      isEmailVerified: true,
     };
 
-    const mockLoginDto = {
-      email: 'test@example.com',
-      password: 'password123',
-    };
-
-    it('should return access token and user info on successful login', async () => {
+    it('should return access token, email and user info on successful login', async () => {
       mockJwtService.sign.mockReturnValue('mockToken');
       (argon2.verify as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.login(mockLoginDto.password, mockUser);
+      const result = await service.login('password123', mockUser);
 
       expect(result).toEqual({
         access_token: 'mockToken',
         userId: mockUser.id,
         username: mockUser.username,
+        email: mockUser.email,
       });
       expect(mockJwtService.sign).toHaveBeenCalledWith(
         { sub: mockUser.id, username: mockUser.username },
-        {
-          secret: 'test-secret',
-          expiresIn: 'test-secret',
-        },
+        { secret: 'test-secret', expiresIn: 'test-secret' },
       );
     });
 
-    it('should throw NotFoundException if user not found', async () => {
-      await expect(
-        service.login(mockLoginDto.password, null as any),
-      ).rejects.toThrow(NotFoundException);
+    it('should throw NotFoundException if user is null', async () => {
+      await expect(service.login('password123', null as any)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw UnauthorizedException if password is incorrect', async () => {
       (argon2.verify as jest.Mock).mockResolvedValue(false);
+      await expect(service.login('wrongpass', mockUser)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
 
-      await expect(
-        service.login(mockLoginDto.password, mockUser),
-      ).rejects.toThrow(UnauthorizedException);
+  describe('generateToken', () => {
+    it('should use JWT_EXPIRATION when no expiresIn is provided', () => {
+      mockJwtService.sign.mockReturnValue('signedToken');
+
+      const result = service.generateToken({ sub: 1, username: 'user' });
+
+      expect(result).toBe('signedToken');
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        { sub: 1, username: 'user' },
+        { secret: 'test-secret', expiresIn: 'test-secret' },
+      );
+    });
+
+    it('should use the provided expiresIn when given', () => {
+      mockJwtService.sign.mockReturnValue('emailToken');
+
+      const result = service.generateToken(
+        { username: 'user', email: 'a@b.com', hashPass: 'h', action: 'register' },
+        '24h',
+      );
+
+      expect(result).toBe('emailToken');
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'register' }),
+        { secret: 'test-secret', expiresIn: '24h' },
+      );
     });
   });
 
   describe('verifyToken', () => {
-    const mockToken = 'validToken';
-    const mockPayload = {
-      sub: 1,
-      email: 'test@example.com',
-    };
-
-    it('should return payload for valid token', async () => {
+    it('should return the decoded payload for a valid token', () => {
+      const mockPayload = { sub: 1, email: 'test@example.com' };
       mockJwtService.verify.mockReturnValue(mockPayload);
 
-      const result = await service.verifyToken(mockToken);
+      const result = service.verifyToken('validToken');
 
       expect(result).toEqual(mockPayload);
-      expect(mockJwtService.verify).toHaveBeenCalledWith(mockToken, {
+      expect(mockJwtService.verify).toHaveBeenCalledWith('validToken', {
         secret: 'test-secret',
       });
     });
 
-    it('should throw UnauthorizedException for invalid token', () => {
-      const invalidToken = 'invalid.token.here';
-      expect(() => service.verifyToken(invalidToken)).toThrow(
-        UnauthorizedException,
-      );
+    it('should propagate the error when jwtService.verify throws', () => {
+      mockJwtService.verify.mockImplementation(() => {
+        throw new Error('invalid signature');
+      });
+
+      expect(() => service.verifyToken('bad.token')).toThrow('invalid signature');
     });
   });
 });

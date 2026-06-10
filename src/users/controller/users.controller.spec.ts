@@ -5,6 +5,8 @@ import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import { AuthService } from '../../auth/service/auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AuthGuard } from '../../auth/guard/auth.guard';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -34,6 +36,7 @@ describe('UsersController', () => {
 
   const mockConfigService = {
     get: jest.fn().mockReturnValue('test-secret'),
+    getOrThrow: jest.fn().mockReturnValue('test-secret'),
   };
 
   beforeEach(async () => {
@@ -58,7 +61,12 @@ describe('UsersController', () => {
           useValue: mockConfigService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<UsersController>(UsersController);
   });

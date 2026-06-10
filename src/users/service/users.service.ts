@@ -57,12 +57,10 @@ export class UsersService {
 
     const hashPass = await argon2.hash(password, hashingOptions);
 
-    const verificationToken = this.authService.generateToken({
-      username,
-      email,
-      hashPass,
-      action: 'register',
-    });
+    const verificationToken = this.authService.generateToken(
+      { username, email, hashPass, action: 'register' },
+      this.configService.getOrThrow<string>('EMAIL_TOKEN_EXPIRATION'),
+    );
 
     const verificationLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/verify-email?token=${verificationToken}`;
 
@@ -225,10 +223,10 @@ export class UsersService {
       return { message: 'If this email is registered, you will receive an email.' };
     }
 
-    const verificationToken = this.authService.generateToken({
-      email: email,
-      action: 'change password',
-    });
+    const verificationToken = this.authService.generateToken(
+      { email, action: 'change password' },
+      this.configService.getOrThrow<string>('EMAIL_TOKEN_EXPIRATION'),
+    );
 
     const verificationLink = `${this.configService.getOrThrow<string>('FRONTEND_URL')}/forget-pass?token=${verificationToken}`;
 

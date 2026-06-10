@@ -62,10 +62,11 @@ export class AuthService {
     return { username: user.username, userId: user.id };
   }
 
-  generateToken(payload: TokenPayload): string {
+  generateToken(payload: TokenPayload, expiresIn?: string): string {
     return this.jwtServices.sign(payload, {
       secret: this.configService.getOrThrow<string>('TOKEN_SECRET'),
-      expiresIn: this.configService.getOrThrow<string>('JWT_EXPIRATION'),
+      expiresIn:
+        expiresIn ?? this.configService.getOrThrow<string>('JWT_EXPIRATION'),
     });
   }
 

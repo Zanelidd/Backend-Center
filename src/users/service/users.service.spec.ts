@@ -106,6 +106,7 @@ describe('UsersService', () => {
       );
       expect(mockAuthService.generateToken).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'register' }),
+        'mock-value',
       );
     });
 
