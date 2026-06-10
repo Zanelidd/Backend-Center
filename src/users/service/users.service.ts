@@ -196,10 +196,8 @@ export class UsersService {
         return new ReponseUser(user);
       });
     } catch (error) {
-      throw new InternalServerErrorException(
-        error.message,
-        'Failed to find users',
-      );
+      console.error('findAll failed:', error);
+      throw new InternalServerErrorException('Failed to find users');
     }
   }
 
