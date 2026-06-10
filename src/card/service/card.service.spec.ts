@@ -1,6 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CardService } from './card.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
+import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
+
+jest.mock('pokemon-tcg-sdk-typescript', () => ({
+  PokemonTCG: {
+    findCardsByQueries: jest.fn(),
+  },
+}));
 
 describe('CardService', () => {
   let service: CardService;
@@ -29,6 +36,42 @@ describe('CardService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('findAllUserCards', () => {
+    it('should batch all IDs into a single API call and map collectionId', async () => {
+      const dbCards = [
+        { id: 10, remoteId: 'xy1-1', userId: 1 },
+        { id: 11, remoteId: 'xy1-2', userId: 1 },
+      ];
+      const apiCards = [
+        { id: 'xy1-1', name: 'Bulbasaur' },
+        { id: 'xy1-2', name: 'Charmander' },
+      ];
+      mockPrismaService.card.findMany.mockResolvedValue(dbCards);
+      (PokemonTCG.findCardsByQueries as jest.Mock).mockResolvedValue(apiCards);
+
+      const result = await service.findAllUserCards(1);
+
+      expect(PokemonTCG.findCardsByQueries).toHaveBeenCalledTimes(1);
+      expect(PokemonTCG.findCardsByQueries).toHaveBeenCalledWith({
+        q: 'id:xy1-1 OR id:xy1-2',
+        pageSize: 2,
+      });
+      expect(result).toEqual([
+        { id: 'xy1-1', name: 'Bulbasaur', collectionId: 10 },
+        { id: 'xy1-2', name: 'Charmander', collectionId: 11 },
+      ]);
+    });
+
+    it('should return empty array and skip API call when user has no cards', async () => {
+      mockPrismaService.card.findMany.mockResolvedValue([]);
+
+      const result = await service.findAllUserCards(1);
+
+      expect(result).toEqual([]);
+      expect(PokemonTCG.findCardsByQueries).not.toHaveBeenCalled();
+    });
   });
 
   describe('create', () => {

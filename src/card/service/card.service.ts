@@ -24,16 +24,20 @@ export class CardService {
       where: { userId },
     });
 
-    const results = await Promise.allSettled(
-      dbCards.map((dbCard) => PokemonTCG.findCardByID(dbCard.remoteId)),
-    );
+    if (dbCards.length === 0) {
+      return [];
+    }
 
-    return results
-      .map((result, index) => ({ result, dbCard: dbCards[index] }))
-      .filter(({ result }) => result.status === 'fulfilled')
-      .map(({ result, dbCard }) => ({
-        ...(result as PromiseFulfilledResult<Card>).value,
-        collectionId: dbCard.id,
+    const q = dbCards.map((c) => `id:${c.remoteId}`).join(' OR ');
+    const apiCards = await PokemonTCG.findCardsByQueries({ q, pageSize: dbCards.length });
+
+    const collectionIdByRemoteId = new Map(dbCards.map((c) => [c.remoteId, c.id]));
+
+    return apiCards
+      .filter((card) => collectionIdByRemoteId.has(card.id))
+      .map((card) => ({
+        ...card,
+        collectionId: collectionIdByRemoteId.get(card.id)!,
       }));
   }
 
