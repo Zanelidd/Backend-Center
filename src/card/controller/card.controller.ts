@@ -53,8 +53,12 @@ export class CardController {
     return this.cardService.update(+id, updateCollectionDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string, @CurrentUser() user: { sub: number }) {
-    return this.cardService.remove(id, user.sub);
+
+  @Delete(':remoteId')
+  remove(
+    @Param('remoteId') remoteId: string,
+    @CurrentUser() user: { sub: number },
+  ) {
+    return this.cardService.remove(remoteId, user.sub);
   }
 }
