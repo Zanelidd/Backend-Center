@@ -155,17 +155,13 @@ export class UsersService {
         throw new UnauthorizedException('Invalid Token');
       }
 
-      const { username, email } = decodedToken;
-      return { username, email };
+      const { email } = decodedToken;
+      return { email };
     } catch (error) {
-      console.error('Verification error:', error);
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof ConflictException
-      ) {
+      if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new InternalServerErrorException('Error during verification');
+      throw new UnauthorizedException('Invalid or expired reset link');
     }
   }
 
@@ -248,6 +244,39 @@ export class UsersService {
         'Error sending verification email',
       );
     }
+  }
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    let email: unknown;
+    try {
+      const decoded = this.authService.verifyToken(token);
+      if (!decoded?.action || decoded.action !== 'change password') {
+        throw new UnauthorizedException('Invalid or expired reset link');
+      }
+      email = decoded.email;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      throw new UnauthorizedException('Invalid or expired reset link');
+    }
+
+    const user = await this.prismaService.user.findUnique({
+      where: { email: email as string },
+    });
+    if (!user) throw new UnauthorizedException('Invalid or expired reset link');
+
+    const hashPass = await argon2.hash(password, {
+      type: argon2.argon2id,
+      memoryCost: 2 ** 16,
+      timeCost: 5,
+      parallelism: 1,
+    });
+
+    await this.prismaService.user.update({
+      where: { id: user.id },
+      data: { password: hashPass },
+    });
+
+    return { message: 'Password updated successfully' };
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
