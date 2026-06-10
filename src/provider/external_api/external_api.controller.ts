@@ -1,6 +1,11 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ExternalApiService } from './external_api.service';
+import { AuthGuard } from '../../auth/guard/auth.guard';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { SearchCardDto } from './dto/search-card.dto';
+import { SetCardsDto } from './dto/set-cards.dto';
 
+@UseGuards(AuthGuard, ThrottlerGuard)
 @Controller('external_api')
 export class ExternalApiController {
   constructor(private readonly externalApiService: ExternalApiService) {}
@@ -15,13 +20,13 @@ export class ExternalApiController {
     return this.externalApiService.findOne(id);
   }
 
-  @Post('/searchCard')
-  findMany(@Body('name') name: string) {
-    return this.externalApiService.findMany(name);
+  @Get('/searchCard')
+  findMany(@Query() query: SearchCardDto) {
+    return this.externalApiService.findMany(query.name);
   }
 
-  @Post('/cards')
-  findManyBySet(@Body('setId') setId: string) {
-    return this.externalApiService.findManyBySet(setId);
+  @Get('/cards')
+  findManyBySet(@Query() query: SetCardsDto) {
+    return this.externalApiService.findManyBySet(query.setId);
   }
 }

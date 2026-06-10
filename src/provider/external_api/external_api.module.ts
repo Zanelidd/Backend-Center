@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { ExternalApiController } from './external_api.controller';
 import { ExternalApiService } from './external_api.service';
 
 @Module({
   imports: [HttpModule, ConfigModule],
   controllers: [ExternalApiController],
-  providers: [ExternalApiService],
+  providers: [ExternalApiService, JwtService],
   exports: [ExternalApiService],
 })
 export class ExternalApiModule {}
