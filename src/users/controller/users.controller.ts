@@ -7,8 +7,10 @@ import {
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { UsersService } from '../service/users.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -18,6 +20,13 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { TokenDto } from '../dto/token.dto';
 import { FindByEmailDto } from '../dto/find-by-email.dto';
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  maxAge: 1000 * 60 * 60, // 1h — must match JWT_EXPIRATION
+};
 
 @Controller('users')
 export class UsersController {
@@ -31,8 +40,14 @@ export class UsersController {
 
   @UseGuards(ThrottlerGuard)
   @Post('verify')
-  verifyAndCreate(@Body() body: TokenDto) {
-    return this.usersService.verifyAndCreateAccount(body.token);
+  async verifyAndCreate(
+    @Body() body: TokenDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access_token, ...user } =
+      await this.usersService.verifyAndCreateAccount(body.token);
+    res.cookie('access_token', access_token, COOKIE_OPTIONS);
+    return user;
   }
 
   @UseGuards(ThrottlerGuard)
@@ -43,9 +58,25 @@ export class UsersController {
 
   @UseGuards(ThrottlerGuard)
   @Post('signIn')
-  login(@Body() loginDto: loginDto) {
-    return this.usersService.signIn(loginDto);
+  async login(
+    @Body() loginDto: loginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access_token, ...user } = await this.usersService.signIn(loginDto);
+    res.cookie('access_token', access_token, COOKIE_OPTIONS);
+    return user;
   }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+    return { message: 'Logged out' };
+  }
+
   @UseGuards(AuthGuard)
   @Get('me')
   getProfile(@CurrentUser() user: { sub: number; username: string }) {
