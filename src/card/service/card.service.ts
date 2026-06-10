@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateCardDto } from '../dto/update-card.dto';
 import { CreateCardDto } from '../dto/create-card.dto';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
@@ -60,6 +60,10 @@ export class CardService {
   }
 
   async remove(remoteId: string, userId: number) {
+    const card = await this.prismaService.card.findFirst({
+      where: { remoteId, userId },
+    });
+    if (!card) throw new NotFoundException('Card not found in your collection');
     return this.prismaService.card.delete({
       where: { remoteId_userId: { remoteId, userId } },
     });
