@@ -24,8 +24,11 @@ export class CardController {
   constructor(private readonly cardService: CardService) {}
 
   @Post()
-  async create(@Body() createCardDto: CreateCardDto) {
-    const result = await this.cardService.create(createCardDto);
+  async create(
+    @Body() createCardDto: CreateCardDto,
+    @CurrentUser() user: { sub: number },
+  ) {
+    const result = await this.cardService.create(createCardDto, user.sub);
     return new ResponseCardDto(result);
   }
 

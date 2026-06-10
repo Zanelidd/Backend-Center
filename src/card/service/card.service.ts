@@ -10,11 +10,11 @@ import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 export class CardService {
   constructor(private prismaService: PrismaService) {}
 
-  async create(cardData: CreateCardDto) {
+  async create(cardData: CreateCardDto, userId: number) {
     return this.prismaService.card.create({
       data: {
         remoteId: cardData.cardId,
-        userId: cardData.userId,
+        userId,
       },
     });
   }
