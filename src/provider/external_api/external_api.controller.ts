@@ -3,6 +3,7 @@ import { ExternalApiService } from './external_api.service';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { SearchCardDto } from './dto/search-card.dto';
 import { SetCardsDto } from './dto/set-cards.dto';
+import { CardIdDto } from './dto/card-id.dto';
 
 @UseGuards(ThrottlerGuard)
 @Controller('external_api')
@@ -15,8 +16,8 @@ export class ExternalApiController {
   }
 
   @Get('/cards/:id')
-  findOne(@Param('id') id: string) {
-    return this.externalApiService.findOne(id);
+  findOne(@Param() params: CardIdDto) {
+    return this.externalApiService.findOne(params.id);
   }
 
   @Get('/searchCard')
