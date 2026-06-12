@@ -1,6 +1,5 @@
 import {
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -21,27 +20,21 @@ export class AuthService {
 
   async login(
     password: string,
-    user: User,
+    user: User | null,
   ): Promise<{
     access_token: string;
     email: string;
     username: string;
     userId: number;
   }> {
-    if (!user) {
-      throw new NotFoundException();
-    }
-    if (!user.password) {
-      throw new NotFoundException({
-        message: `Password not found`,
-        statusCode: 401,
-      });
+    if (!user || !user.password) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await argon2.verify(user.password, password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException({ message: `Invalid password` });
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const payload = { sub: user.id, username: user.username };

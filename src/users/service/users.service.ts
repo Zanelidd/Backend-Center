@@ -166,10 +166,10 @@ export class UsersService {
   }
 
   async signIn(loginDto: loginDto) {
-    const findUser = await this.prismaService.user.findUniqueOrThrow({
+    const findUser = await this.prismaService.user.findUnique({
       where: { username: loginDto.username },
     });
-    return this.authService.login(loginDto.password, findUser);
+    return this.authService.login(loginDto.password, findUser ?? null);
   }
 
   async findAll() {
