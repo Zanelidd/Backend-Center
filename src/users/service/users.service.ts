@@ -52,7 +52,7 @@ export class UsersService {
     const hashingOptions = {
       type: argon2.argon2id,
       memoryCost: 2 ** 16,
-      time: 5,
+      timeCost: 5,
       parallelism: 1,
     };
 
