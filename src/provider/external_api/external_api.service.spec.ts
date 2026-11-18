@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { ExternalApiService } from './external_api.service';
 
@@ -43,6 +44,14 @@ describe('ExternalApiService', () => {
     const result = await service.findAll();
 
     expect(result).toEqual([{ id: 'base1-1' }]);
+  });
+
+  it('throws instead of silently returning undefined when the envelope has no data key', async () => {
+    httpService.get.mockReturnValue(of({ data: { page: 1 } }));
+
+    await expect(service.findAll()).rejects.toThrow(
+      'An error happened while fetching Pokemon sets',
+    );
   });
 
   it('retries a 502 and returns the unwrapped data once the API recovers', async () => {
@@ -99,6 +108,22 @@ describe('ExternalApiService', () => {
       'An error happened while fetching Pokemon sets',
     );
     expect(httpService.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps an upstream 404 to NotFoundException', async () => {
+    httpService.get.mockReturnValue(
+      throwError(() => ({ response: { status: 404 } })),
+    );
+
+    await expect(service.findAll()).rejects.toThrow(NotFoundException);
+  });
+
+  it('maps an upstream 400 to BadRequestException', async () => {
+    httpService.get.mockReturnValue(
+      throwError(() => ({ response: { status: 400 } })),
+    );
+
+    await expect(service.findAll()).rejects.toThrow(BadRequestException);
   });
 
   describe('findManyByQuery', () => {
