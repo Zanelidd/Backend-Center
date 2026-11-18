@@ -8,12 +8,16 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { HttpAdapterHost } from '@nestjs/core';
+import { ExternalApiUnavailableException } from '../http/external-api-unavailable.exception';
 
 export const isPrismaException = (exception: unknown): boolean =>
   exception instanceof Prisma.PrismaClientKnownRequestError ||
   exception instanceof Prisma.PrismaClientValidationError ||
   exception instanceof Prisma.PrismaClientRustPanicError ||
   exception instanceof Prisma.PrismaClientUnknownRequestError;
+
+const GENERIC_ERROR_MESSAGE = 'An unexpected error occurred. Please try again later.';
+const INVALID_REQUEST_MESSAGE = 'Invalid request.';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -41,6 +45,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       exception,
     );
     if (exception instanceof HttpException) {
+      if (exception instanceof ExternalApiUnavailableException) {
+        httpAdapter.setHeader(
+          ctx.getResponse(),
+          'Retry-After',
+          String(exception.retryAfterSeconds),
+        );
+      }
       return httpAdapter.reply(
         ctx.getResponse(),
         exception.getResponse(),
@@ -50,20 +61,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (isPrismaException(exception)) {
       responseBody.statusCode = this.prismaFilter(exception);
-    }
-
-    if (
-      typeof exception === 'object' &&
-      exception !== null &&
-      'message' in exception &&
-      typeof exception.message === 'string'
-    ) {
-      const parsedMessage = exception.message
-        .replace(/\n/g, ' ')
-        .replace(/`/g, "'")
-        .replace(/ +(?= )/g, '')
-        .trim();
-      responseBody.message = parsedMessage;
+      // Prisma's own error messages can leak internal details (query shape,
+      // file paths, sometimes raw engine/driver output). The mapped status
+      // code is informative enough on its own, so the raw message stays out
+      // of the response (it's already logged in full above).
+      responseBody.message = INVALID_REQUEST_MESSAGE;
+    } else {
+      // Any other unexpected error: never forward exception.message to the
+      // client. It's logged in full above for diagnosis, but may contain
+      // internal details that shouldn't be exposed.
+      responseBody.message = GENERIC_ERROR_MESSAGE;
     }
 
     httpAdapter.reply(ctx.getResponse(), responseBody, responseBody.statusCode);

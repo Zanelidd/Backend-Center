@@ -3,12 +3,12 @@ import { CardService } from './service/card.service';
 import { CardController } from './controller/card.controller';
 import { PrismaModule } from 'src/provider/database/prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
-import { JwtService } from '@nestjs/jwt';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, HttpModule],
+  imports: [PrismaModule, HttpModule, AuthModule],
   controllers: [CardController],
-  providers: [CardService, JwtService],
+  providers: [CardService],
   exports: [CardService],
 })
 export class CardModule {}
