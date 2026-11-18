@@ -60,5 +60,3 @@ jobs:
             npm ci --omit=dev
             npx prisma db push
             
-            
-            pm2 restart mon-back || pm2 start dist/main.js --name "mon-back"
