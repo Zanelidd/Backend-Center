@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { ServiceUnavailableException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { ExternalApiService } from './external_api.service';
 
@@ -59,11 +58,13 @@ describe('ExternalApiService', () => {
 
   it('throws a clean ServiceUnavailableException once retries are exhausted on a persistent 503', async () => {
     jest.useFakeTimers();
-    httpService.get.mockReturnValue(throwError(() => ({ response: { status: 503 } })));
+    httpService.get.mockReturnValue(
+      throwError(() => ({ response: { status: 503 } })),
+    );
 
     const resultPromise = service.findAll();
     const assertion = expect(resultPromise).rejects.toThrow(
-      "The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.",
+      'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
     );
     await jest.runAllTimersAsync();
     await assertion;
@@ -80,7 +81,7 @@ describe('ExternalApiService', () => {
 
     const resultPromise = service.findAll();
     const assertion = expect(resultPromise).rejects.toThrow(
-      "The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.",
+      'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
     );
     await jest.runAllTimersAsync();
     await assertion;
@@ -88,7 +89,9 @@ describe('ExternalApiService', () => {
   });
 
   it('does not retry a non-retryable error and keeps the specific fallback message', async () => {
-    httpService.get.mockReturnValue(throwError(() => ({ response: { status: 404 } })));
+    httpService.get.mockReturnValue(
+      throwError(() => ({ response: { status: 404 } })),
+    );
 
     await expect(service.findAll()).rejects.toThrow(
       'An error happened while fetching Pokemon sets',
