@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { UpdateCardDto } from '../dto/update-card.dto';
@@ -10,8 +11,13 @@ import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { ExternalApiService } from '../../provider/external_api/external_api.service';
 
+/** Hard cap enforced by the Pokemon TCG API itself on the `pageSize` query param. */
+const POKEMON_TCG_API_MAX_PAGE_SIZE = 250;
+
 @Injectable()
 export class CardService {
+  private readonly logger = new Logger(CardService.name);
+
   constructor(
     private prismaService: PrismaService,
     private externalApiService: ExternalApiService,
@@ -44,11 +50,16 @@ export class CardService {
       return [];
     }
 
+    if (dbCards.length > POKEMON_TCG_API_MAX_PAGE_SIZE) {
+      this.logger.warn(
+        `User ${userId} has ${dbCards.length} cards, above the Pokemon TCG API's ` +
+          `max pageSize (${POKEMON_TCG_API_MAX_PAGE_SIZE}); the collection view will be truncated.`,
+      );
+    }
+    const pageSize = Math.min(dbCards.length, POKEMON_TCG_API_MAX_PAGE_SIZE);
+
     const q = dbCards.map((c) => `id:${c.remoteId}`).join(' OR ');
-    const apiCards = await this.externalApiService.findManyByQuery(
-      q,
-      dbCards.length,
-    );
+    const apiCards = await this.externalApiService.findManyByQuery(q, pageSize);
 
     const collectionIdByRemoteId = new Map(
       dbCards.map((c) => [c.remoteId, c.id]),
