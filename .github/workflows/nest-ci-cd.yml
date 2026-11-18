@@ -61,4 +61,4 @@ jobs:
             npx prisma db push
             
             
-            pm2 restart back || pm2 start dist/main.js --name "back"
+            pm2 restart mon-back || pm2 start dist/main.js --name "mon-back"
