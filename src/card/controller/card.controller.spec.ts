@@ -5,6 +5,7 @@ import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import { ExternalApiService } from '../../provider/external_api/external_api.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 describe('CardController', () => {
   let controller: CardController;
@@ -53,7 +54,10 @@ describe('CardController', () => {
           useValue: mockConfigService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<CardController>(CardController);
   });
