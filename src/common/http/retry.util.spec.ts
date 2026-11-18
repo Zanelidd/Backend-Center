@@ -1,11 +1,11 @@
 import { isRetryableHttpError, retryDelayMs, retryWithBackoff } from './retry.util';
 
 describe('isRetryableHttpError', () => {
-  it.each([502, 503, 504])('returns true for HTTP %d', (status) => {
+  it.each([500, 502, 503, 504, 599])('returns true for HTTP %d', (status) => {
     expect(isRetryableHttpError({ response: { status } })).toBe(true);
   });
 
-  it.each([400, 401, 404, 500])('returns false for HTTP %d', (status) => {
+  it.each([400, 401, 404])('returns false for HTTP %d', (status) => {
     expect(isRetryableHttpError({ response: { status } })).toBe(false);
   });
 

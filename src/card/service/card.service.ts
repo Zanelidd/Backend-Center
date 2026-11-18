@@ -3,7 +3,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { UpdateCardDto } from '../dto/update-card.dto';
 import { CreateCardDto } from '../dto/create-card.dto';
@@ -13,11 +12,11 @@ import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import {
   DEFAULT_RETRY_ATTEMPTS,
-  EXTERNAL_API_UNAVAILABLE_MESSAGE,
   describeHttpError,
   isRetryableHttpError,
   retryWithBackoff,
 } from '../../common/http/retry.util';
+import { ExternalApiUnavailableException } from '../../common/http/external-api-unavailable.exception';
 
 @Injectable()
 export class CardService {
@@ -87,7 +86,7 @@ export class CardService {
         this.logger.error(
           `Pokemon TCG API unavailable after ${DEFAULT_RETRY_ATTEMPTS} retries (${describeHttpError(error)})`,
         );
-        throw new ServiceUnavailableException(EXTERNAL_API_UNAVAILABLE_MESSAGE);
+        throw new ExternalApiUnavailableException();
       }
       throw error;
     }

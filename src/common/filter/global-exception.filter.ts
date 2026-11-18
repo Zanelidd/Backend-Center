@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { HttpAdapterHost } from '@nestjs/core';
+import { ExternalApiUnavailableException } from '../http/external-api-unavailable.exception';
 
 export const isPrismaException = (exception: unknown): boolean =>
   exception instanceof Prisma.PrismaClientKnownRequestError ||
@@ -41,6 +42,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       exception,
     );
     if (exception instanceof HttpException) {
+      if (exception instanceof ExternalApiUnavailableException) {
+        httpAdapter.setHeader(
+          ctx.getResponse(),
+          'Retry-After',
+          String(exception.retryAfterSeconds),
+        );
+      }
       return httpAdapter.reply(
         ctx.getResponse(),
         exception.getResponse(),

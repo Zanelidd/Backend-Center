@@ -63,11 +63,28 @@ describe('ExternalApiService', () => {
 
     const resultPromise = service.findAll();
     const assertion = expect(resultPromise).rejects.toThrow(
-      'Service externe temporairement indisponible, réessayez plus tard.',
+      "The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.",
     );
     await jest.runAllTimersAsync();
     await assertion;
     expect(httpService.get).toHaveBeenCalledTimes(4); // 1 initial attempt + 3 retries
+  });
+
+  it('still returns the clean message when Cloudflare switches from 503 to a plain 500 on the last attempt', async () => {
+    jest.useFakeTimers();
+    httpService.get
+      .mockReturnValueOnce(throwError(() => ({ response: { status: 503 } })))
+      .mockReturnValueOnce(throwError(() => ({ response: { status: 503 } })))
+      .mockReturnValueOnce(throwError(() => ({ response: { status: 503 } })))
+      .mockReturnValueOnce(throwError(() => ({ response: { status: 500 } })));
+
+    const resultPromise = service.findAll();
+    const assertion = expect(resultPromise).rejects.toThrow(
+      "The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.",
+    );
+    await jest.runAllTimersAsync();
+    await assertion;
+    expect(httpService.get).toHaveBeenCalledTimes(4);
   });
 
   it('does not retry a non-retryable error and keeps the specific fallback message', async () => {

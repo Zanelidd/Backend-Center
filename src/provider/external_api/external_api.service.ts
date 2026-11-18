@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -6,11 +6,11 @@ import { AxiosRequestConfig } from 'axios';
 import type { Card, Set } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import {
   DEFAULT_RETRY_ATTEMPTS,
-  EXTERNAL_API_UNAVAILABLE_MESSAGE,
   describeHttpError,
   isRetryableHttpError,
   retryWithBackoff,
 } from '../../common/http/retry.util';
+import { ExternalApiUnavailableException } from '../../common/http/external-api-unavailable.exception';
 
 @Injectable()
 export class ExternalApiService {
@@ -58,11 +58,7 @@ export class ExternalApiService {
     );
   }
 
-  /**
-   * GET helper shared by all endpoints: retries transient 502/503/504/timeout
-   * errors with backoff, then maps a still-failing call to a clean, user-safe
-   * error instead of leaking the raw axios error to the client.
-   */
+
   private async get<T>(
     path: string,
     params: Record<string, string> | undefined,
@@ -75,7 +71,10 @@ export class ExternalApiService {
 
     try {
       const response = await retryWithBackoff(
-        () => firstValueFrom(this.httpService.get<T>(`${this.apiUrl}${path}`, config)),
+        () =>
+          firstValueFrom(
+            this.httpService.get<T>(`${this.apiUrl}${path}`, config),
+          ),
         {
           onRetry: (attempt, error) =>
             this.logger.warn(
@@ -89,7 +88,7 @@ export class ExternalApiService {
         this.logger.error(
           `Pokemon TCG API unavailable after ${DEFAULT_RETRY_ATTEMPTS} retries on GET ${path} (${describeHttpError(error)})`,
         );
-        throw new ServiceUnavailableException(EXTERNAL_API_UNAVAILABLE_MESSAGE);
+        throw new ExternalApiUnavailableException();
       }
       this.logger.error(`${fallbackMessage} (${describeHttpError(error)})`);
       throw new Error(fallbackMessage);

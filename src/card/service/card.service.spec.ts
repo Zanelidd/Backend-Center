@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CardService } from './card.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
-import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 jest.mock('pokemon-tcg-sdk-typescript', () => ({
   PokemonTCG: {
@@ -17,6 +21,7 @@ describe('CardService', () => {
     card: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -108,6 +113,21 @@ describe('CardService', () => {
       jest.useRealTimers();
     });
 
+    it('should carry a 60s Retry-After hint on the exhausted-retries exception', async () => {
+      jest.useFakeTimers();
+      const dbCards = [{ id: 10, remoteId: 'xy1-1', userId: 1 }];
+      mockPrismaService.card.findMany.mockResolvedValue(dbCards);
+      (PokemonTCG.findCardsByQueries as jest.Mock).mockRejectedValue({
+        response: { status: 503 },
+      });
+
+      const resultPromise = service.findAllUserCards(1);
+      const assertion = expect(resultPromise).rejects.toMatchObject({ retryAfterSeconds: 60 });
+      await jest.runAllTimersAsync();
+      await assertion;
+      jest.useRealTimers();
+    });
+
     it('should not retry and should propagate a non-retryable error as-is', async () => {
       const dbCards = [{ id: 10, remoteId: 'xy1-1', userId: 1 }];
       mockPrismaService.card.findMany.mockResolvedValue(dbCards);
@@ -174,13 +194,24 @@ describe('CardService', () => {
   describe('remove', () => {
     it('should delete using the composite remoteId+userId key', async () => {
       const mockCard = { id: 1, remoteId: 'xy7-54', userId: 1 };
+      mockPrismaService.card.findFirst.mockResolvedValue(mockCard);
       mockPrismaService.card.delete.mockResolvedValue(mockCard);
 
       await service.remove('xy7-54', 1);
 
+      expect(mockPrismaService.card.findFirst).toHaveBeenCalledWith({
+        where: { remoteId: 'xy7-54', userId: 1 },
+      });
       expect(mockPrismaService.card.delete).toHaveBeenCalledWith({
         where: { remoteId_userId: { remoteId: 'xy7-54', userId: 1 } },
       });
+    });
+
+    it('should throw NotFoundException when the card is not in the collection', async () => {
+      mockPrismaService.card.findFirst.mockResolvedValue(null);
+
+      await expect(service.remove('xy7-54', 1)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.card.delete).not.toHaveBeenCalled();
     });
   });
 });
