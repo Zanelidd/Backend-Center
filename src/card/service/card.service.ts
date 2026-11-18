@@ -1,13 +1,28 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { UpdateCardDto } from '../dto/update-card.dto';
 import { CreateCardDto } from '../dto/create-card.dto';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
 
 import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import {
+  DEFAULT_RETRY_ATTEMPTS,
+  EXTERNAL_API_UNAVAILABLE_MESSAGE,
+  describeHttpError,
+  isRetryableHttpError,
+  retryWithBackoff,
+} from '../../common/http/retry.util';
 
 @Injectable()
 export class CardService {
+  private readonly logger = new Logger(CardService.name);
+
   constructor(private prismaService: PrismaService) {}
 
   async create(cardData: CreateCardDto, userId: number) {
@@ -26,7 +41,9 @@ export class CardService {
     }
   }
 
-  async findAllUserCards(userId: number): Promise<(Card & { collectionId: number })[]> {
+  async findAllUserCards(
+    userId: number,
+  ): Promise<(Card & { collectionId: number })[]> {
     const dbCards = await this.prismaService.card.findMany({
       where: { userId },
     });
@@ -36,9 +53,11 @@ export class CardService {
     }
 
     const q = dbCards.map((c) => `id:${c.remoteId}`).join(' OR ');
-    const apiCards = await PokemonTCG.findCardsByQueries({ q, pageSize: dbCards.length });
+    const apiCards = await this.fetchCardsFromExternalApi(q, dbCards.length);
 
-    const collectionIdByRemoteId = new Map(dbCards.map((c) => [c.remoteId, c.id]));
+    const collectionIdByRemoteId = new Map(
+      dbCards.map((c) => [c.remoteId, c.id]),
+    );
 
     return apiCards
       .filter((card) => collectionIdByRemoteId.has(card.id))
@@ -46,6 +65,32 @@ export class CardService {
         ...card,
         collectionId: collectionIdByRemoteId.get(card.id)!,
       }));
+  }
+
+
+  private async fetchCardsFromExternalApi(
+    q: string,
+    pageSize: number,
+  ): Promise<Card[]> {
+    try {
+      return await retryWithBackoff(
+        () => PokemonTCG.findCardsByQueries({ q, pageSize }),
+        {
+          onRetry: (attempt, error) =>
+            this.logger.warn(
+              `Retry ${attempt}/${DEFAULT_RETRY_ATTEMPTS} fetching cards from Pokemon TCG API (${describeHttpError(error)})`,
+            ),
+        },
+      );
+    } catch (error) {
+      if (isRetryableHttpError(error)) {
+        this.logger.error(
+          `Pokemon TCG API unavailable after ${DEFAULT_RETRY_ATTEMPTS} retries (${describeHttpError(error)})`,
+        );
+        throw new ServiceUnavailableException(EXTERNAL_API_UNAVAILABLE_MESSAGE);
+      }
+      throw error;
+    }
   }
 
   async findOne(id: number) {

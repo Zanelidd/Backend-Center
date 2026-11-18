@@ -5,7 +5,7 @@ import { ExternalApiController } from './external_api.controller';
 import { ExternalApiService } from './external_api.service';
 
 @Module({
-  imports: [HttpModule, ConfigModule],
+  imports: [HttpModule.register({ timeout: 10_000 }), ConfigModule],
   controllers: [ExternalApiController],
   providers: [ExternalApiService],
   exports: [ExternalApiService],

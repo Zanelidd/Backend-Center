@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CardService } from './card.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
 import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 
 jest.mock('pokemon-tcg-sdk-typescript', () => ({
   PokemonTCG: {
@@ -72,6 +72,50 @@ describe('CardService', () => {
 
       expect(result).toEqual([]);
       expect(PokemonTCG.findCardsByQueries).not.toHaveBeenCalled();
+    });
+
+    it('should retry on a transient 502/503/504 and still return the result once the API recovers', async () => {
+      jest.useFakeTimers();
+      const dbCards = [{ id: 10, remoteId: 'xy1-1', userId: 1 }];
+      const apiCards = [{ id: 'xy1-1', name: 'Bulbasaur' }];
+      mockPrismaService.card.findMany.mockResolvedValue(dbCards);
+      (PokemonTCG.findCardsByQueries as jest.Mock)
+        .mockRejectedValueOnce({ response: { status: 502 } })
+        .mockResolvedValue(apiCards);
+
+      const resultPromise = service.findAllUserCards(1);
+      await jest.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(PokemonTCG.findCardsByQueries).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([{ id: 'xy1-1', name: 'Bulbasaur', collectionId: 10 }]);
+      jest.useRealTimers();
+    });
+
+    it('should throw a clean ServiceUnavailableException once retries are exhausted on a persistent 503', async () => {
+      jest.useFakeTimers();
+      const dbCards = [{ id: 10, remoteId: 'xy1-1', userId: 1 }];
+      mockPrismaService.card.findMany.mockResolvedValue(dbCards);
+      (PokemonTCG.findCardsByQueries as jest.Mock).mockRejectedValue({
+        response: { status: 503 },
+      });
+
+      const resultPromise = service.findAllUserCards(1);
+      const assertion = expect(resultPromise).rejects.toThrow(ServiceUnavailableException);
+      await jest.runAllTimersAsync();
+      await assertion;
+      expect(PokemonTCG.findCardsByQueries).toHaveBeenCalledTimes(4); // 1 initial attempt + 3 retries
+      jest.useRealTimers();
+    });
+
+    it('should not retry and should propagate a non-retryable error as-is', async () => {
+      const dbCards = [{ id: 10, remoteId: 'xy1-1', userId: 1 }];
+      mockPrismaService.card.findMany.mockResolvedValue(dbCards);
+      const error = { response: { status: 400 } };
+      (PokemonTCG.findCardsByQueries as jest.Mock).mockRejectedValue(error);
+
+      await expect(service.findAllUserCards(1)).rejects.toBe(error);
+      expect(PokemonTCG.findCardsByQueries).toHaveBeenCalledTimes(1);
     });
   });
 
