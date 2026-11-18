@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -98,6 +103,14 @@ export class ExternalApiService {
         throw new ExternalApiUnavailableException();
       }
       this.logger.error(`${fallbackMessage} (${describeHttpError(error)})`);
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 404) {
+        throw new NotFoundException(fallbackMessage);
+      }
+      if (status === 400) {
+        throw new BadRequestException(fallbackMessage);
+      }
       throw new Error(fallbackMessage);
     }
   }
