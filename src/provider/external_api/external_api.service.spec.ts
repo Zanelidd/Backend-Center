@@ -157,4 +157,51 @@ describe('ExternalApiService', () => {
       await assertion;
     });
   });
+
+  describe('circuit breaker', () => {
+    it('opens after 3 exhausted-retry failures and fails fast without calling the API again', async () => {
+      jest.useFakeTimers();
+      httpService.get.mockReturnValue(
+        throwError(() => ({ response: { status: 503 } })),
+      );
+
+      for (let i = 0; i < 3; i++) {
+        const resultPromise = service.findAll();
+        const assertion = expect(resultPromise).rejects.toThrow(
+          'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
+        );
+        await jest.runAllTimersAsync();
+        await assertion;
+      }
+      expect(httpService.get).toHaveBeenCalledTimes(12); // 3 x (1 initial + 3 retries)
+
+      await expect(service.findAll()).rejects.toThrow(
+        'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
+      );
+      expect(httpService.get).toHaveBeenCalledTimes(12); // no new call once open
+    });
+
+    it('allows one trial call after the cooldown and closes again on success', async () => {
+      jest.useFakeTimers();
+      httpService.get.mockReturnValue(
+        throwError(() => ({ response: { status: 503 } })),
+      );
+
+      for (let i = 0; i < 3; i++) {
+        const resultPromise = service.findAll();
+        const assertion = expect(resultPromise).rejects.toThrow();
+        await jest.runAllTimersAsync();
+        await assertion;
+      }
+      expect(httpService.get).toHaveBeenCalledTimes(12);
+
+      jest.setSystemTime(Date.now() + 60_000);
+      httpService.get.mockReturnValue(
+        of({ data: { data: [{ id: 'base1-1' }] } }),
+      );
+
+      await expect(service.findAll()).resolves.toEqual([{ id: 'base1-1' }]);
+      expect(httpService.get).toHaveBeenCalledTimes(13); // 1 trial call, no retry needed
+    });
+  });
 });
