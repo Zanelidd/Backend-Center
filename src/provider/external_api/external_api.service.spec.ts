@@ -46,6 +46,14 @@ describe('ExternalApiService', () => {
     expect(result).toEqual([{ id: 'base1-1' }]);
   });
 
+  it('throws instead of silently returning undefined when the envelope has no data key', async () => {
+    httpService.get.mockReturnValue(of({ data: { page: 1 } }));
+
+    await expect(service.findAll()).rejects.toThrow(
+      'An error happened while fetching Pokemon sets',
+    );
+  });
+
   it('retries a 502 and returns the unwrapped data once the API recovers', async () => {
     jest.useFakeTimers();
     httpService.get

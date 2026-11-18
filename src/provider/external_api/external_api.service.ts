@@ -94,6 +94,11 @@ export class ExternalApiService {
             ),
         },
       );
+      if (response.data?.data === undefined) {
+        throw new Error(
+          `Unexpected response shape from the Pokemon TCG API on GET ${path}`,
+        );
+      }
       return response.data.data;
     } catch (error) {
       if (isRetryableHttpError(error)) {
