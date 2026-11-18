@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { ExternalApiService } from './external_api.service';
 
@@ -43,6 +44,14 @@ describe('ExternalApiService', () => {
     const result = await service.findAll();
 
     expect(result).toEqual([{ id: 'base1-1' }]);
+  });
+
+  it('throws instead of silently returning undefined when the envelope has no data key', async () => {
+    httpService.get.mockReturnValue(of({ data: { page: 1 } }));
+
+    await expect(service.findAll()).rejects.toThrow(
+      'An error happened while fetching Pokemon sets',
+    );
   });
 
   it('retries a 502 and returns the unwrapped data once the API recovers', async () => {
@@ -101,6 +110,22 @@ describe('ExternalApiService', () => {
     expect(httpService.get).toHaveBeenCalledTimes(1);
   });
 
+  it('maps an upstream 404 to NotFoundException', async () => {
+    httpService.get.mockReturnValue(
+      throwError(() => ({ response: { status: 404 } })),
+    );
+
+    await expect(service.findAll()).rejects.toThrow(NotFoundException);
+  });
+
+  it('maps an upstream 400 to BadRequestException', async () => {
+    httpService.get.mockReturnValue(
+      throwError(() => ({ response: { status: 400 } })),
+    );
+
+    await expect(service.findAll()).rejects.toThrow(BadRequestException);
+  });
+
   describe('findManyByQuery', () => {
     it('sends the batched query and pageSize, and unwraps the envelope', async () => {
       httpService.get.mockReturnValue(
@@ -130,6 +155,53 @@ describe('ExternalApiService', () => {
       );
       await jest.runAllTimersAsync();
       await assertion;
+    });
+  });
+
+  describe('circuit breaker', () => {
+    it('opens after 3 exhausted-retry failures and fails fast without calling the API again', async () => {
+      jest.useFakeTimers();
+      httpService.get.mockReturnValue(
+        throwError(() => ({ response: { status: 503 } })),
+      );
+
+      for (let i = 0; i < 3; i++) {
+        const resultPromise = service.findAll();
+        const assertion = expect(resultPromise).rejects.toThrow(
+          'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
+        );
+        await jest.runAllTimersAsync();
+        await assertion;
+      }
+      expect(httpService.get).toHaveBeenCalledTimes(12); // 3 x (1 initial + 3 retries)
+
+      await expect(service.findAll()).rejects.toThrow(
+        'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
+      );
+      expect(httpService.get).toHaveBeenCalledTimes(12); // no new call once open
+    });
+
+    it('allows one trial call after the cooldown and closes again on success', async () => {
+      jest.useFakeTimers();
+      httpService.get.mockReturnValue(
+        throwError(() => ({ response: { status: 503 } })),
+      );
+
+      for (let i = 0; i < 3; i++) {
+        const resultPromise = service.findAll();
+        const assertion = expect(resultPromise).rejects.toThrow();
+        await jest.runAllTimersAsync();
+        await assertion;
+      }
+      expect(httpService.get).toHaveBeenCalledTimes(12);
+
+      jest.setSystemTime(Date.now() + 60_000);
+      httpService.get.mockReturnValue(
+        of({ data: { data: [{ id: 'base1-1' }] } }),
+      );
+
+      await expect(service.findAll()).resolves.toEqual([{ id: 'base1-1' }]);
+      expect(httpService.get).toHaveBeenCalledTimes(13); // 1 trial call, no retry needed
     });
   });
 });

@@ -16,8 +16,9 @@ import { ResponseCardDto } from '../dto/response-card.dto';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, ThrottlerGuard)
 @Controller('card')
 export class CardController {
   constructor(private readonly cardService: CardService) {}
@@ -49,7 +50,6 @@ export class CardController {
     return this.cardService.update(+id, updateCollectionDto, user.sub);
   }
 
-  
   @Delete(':remoteId')
   remove(
     @Param('remoteId') remoteId: string,

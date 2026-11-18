@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -11,12 +16,14 @@ import {
   retryWithBackoff,
 } from '../../common/http/retry.util';
 import { ExternalApiUnavailableException } from '../../common/http/external-api-unavailable.exception';
+import { CircuitBreaker } from '../../common/http/circuit-breaker';
 
 @Injectable()
 export class ExternalApiService {
   private readonly logger = new Logger(ExternalApiService.name);
   private readonly apiUrl: string;
   private readonly apiKey: string;
+  private readonly circuitBreaker = new CircuitBreaker();
 
   constructor(
     private readonly httpService: HttpService,
@@ -71,6 +78,13 @@ export class ExternalApiService {
     params: Record<string, string> | undefined,
     fallbackMessage: string,
   ): Promise<T> {
+    if (!this.circuitBreaker.canAttempt()) {
+      this.logger.warn(
+        `Circuit open for the Pokemon TCG API, failing fast on GET ${path}`,
+      );
+      throw new ExternalApiUnavailableException();
+    }
+
     const config: AxiosRequestConfig = {
       headers: { 'x-Api-Key': this.apiKey },
       ...(params ? { params } : {}),
@@ -89,15 +103,30 @@ export class ExternalApiService {
             ),
         },
       );
+      if (response.data?.data === undefined) {
+        throw new Error(
+          `Unexpected response shape from the Pokemon TCG API on GET ${path}`,
+        );
+      }
+      this.circuitBreaker.recordSuccess();
       return response.data.data;
     } catch (error) {
       if (isRetryableHttpError(error)) {
+        this.circuitBreaker.recordFailure();
         this.logger.error(
           `Pokemon TCG API unavailable after ${DEFAULT_RETRY_ATTEMPTS} retries on GET ${path} (${describeHttpError(error)})`,
         );
         throw new ExternalApiUnavailableException();
       }
       this.logger.error(`${fallbackMessage} (${describeHttpError(error)})`);
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 404) {
+        throw new NotFoundException(fallbackMessage);
+      }
+      if (status === 400) {
+        throw new BadRequestException(fallbackMessage);
+      }
       throw new Error(fallbackMessage);
     }
   }
