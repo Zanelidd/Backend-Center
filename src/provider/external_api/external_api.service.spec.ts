@@ -35,19 +35,21 @@ describe('ExternalApiService', () => {
     expect(service).toBeDefined();
   });
 
-  it('returns the data on success', async () => {
-    httpService.get.mockReturnValue(of({ data: [{ id: 'base1-1' }] }));
+  it('unwraps the API response envelope ({ data: ... }) on success', async () => {
+    httpService.get.mockReturnValue(
+      of({ data: { data: [{ id: 'base1-1' }] } }),
+    );
 
     const result = await service.findAll();
 
     expect(result).toEqual([{ id: 'base1-1' }]);
   });
 
-  it('retries a 502 and returns the data once the API recovers', async () => {
+  it('retries a 502 and returns the unwrapped data once the API recovers', async () => {
     jest.useFakeTimers();
     httpService.get
       .mockReturnValueOnce(throwError(() => ({ response: { status: 502 } })))
-      .mockReturnValueOnce(of({ data: [{ id: 'base1-1' }] }));
+      .mockReturnValueOnce(of({ data: { data: [{ id: 'base1-1' }] } }));
 
     const resultPromise = service.findAll();
     await jest.runAllTimersAsync();
@@ -97,5 +99,37 @@ describe('ExternalApiService', () => {
       'An error happened while fetching Pokemon sets',
     );
     expect(httpService.get).toHaveBeenCalledTimes(1);
+  });
+
+  describe('findManyByQuery', () => {
+    it('sends the batched query and pageSize, and unwraps the envelope', async () => {
+      httpService.get.mockReturnValue(
+        of({ data: { data: [{ id: 'xy1-1' }, { id: 'xy1-2' }] } }),
+      );
+
+      const result = await service.findManyByQuery('id:xy1-1 OR id:xy1-2', 2);
+
+      expect(result).toEqual([{ id: 'xy1-1' }, { id: 'xy1-2' }]);
+      expect(httpService.get).toHaveBeenCalledWith(
+        'https://api.pokemontcg.io/v2/cards',
+        expect.objectContaining({
+          params: { q: 'id:xy1-1 OR id:xy1-2', pageSize: '2' },
+        }),
+      );
+    });
+
+    it('throws a clean ServiceUnavailableException once retries are exhausted', async () => {
+      jest.useFakeTimers();
+      httpService.get.mockReturnValue(
+        throwError(() => ({ response: { status: 503 } })),
+      );
+
+      const resultPromise = service.findManyByQuery('id:xy1-1', 1);
+      const assertion = expect(resultPromise).rejects.toThrow(
+        'The Pokémon API is K.O. (too many Trainers at once), not our app! Give it a minute to heal up at the Pokémon Center, then try again.',
+      );
+      await jest.runAllTimersAsync();
+      await assertion;
+    });
   });
 });

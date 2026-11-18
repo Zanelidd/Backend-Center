@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CardController } from './card.controller';
 import { CardService } from '../service/card.service';
 import { PrismaService } from '../../provider/database/prisma/prisma.service';
+import { ExternalApiService } from '../../provider/external_api/external_api.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
@@ -26,6 +27,10 @@ describe('CardController', () => {
     get: jest.fn().mockReturnValue('test-secret'),
   };
 
+  const mockExternalApiService = {
+    findManyByQuery: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CardController],
@@ -34,6 +39,10 @@ describe('CardController', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: ExternalApiService,
+          useValue: mockExternalApiService,
         },
         {
           provide: JwtService,

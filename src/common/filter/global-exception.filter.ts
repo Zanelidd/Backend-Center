@@ -26,8 +26,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    // In certain situations `httpAdapter` might not be available in the
-    // constructor method, thus we should resolve it here.
     const { httpAdapter } = this.httpAdapterHost;
 
     const ctx = host.switchToHttp();
@@ -61,15 +59,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (isPrismaException(exception)) {
       responseBody.statusCode = this.prismaFilter(exception);
-      // Prisma's own error messages can leak internal details (query shape,
-      // file paths, sometimes raw engine/driver output). The mapped status
-      // code is informative enough on its own, so the raw message stays out
-      // of the response (it's already logged in full above).
       responseBody.message = INVALID_REQUEST_MESSAGE;
     } else {
-      // Any other unexpected error: never forward exception.message to the
-      // client. It's logged in full above for diagnosis, but may contain
-      // internal details that shouldn't be exposed.
       responseBody.message = GENERIC_ERROR_MESSAGE;
     }
 
