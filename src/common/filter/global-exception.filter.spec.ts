@@ -1,5 +1,6 @@
 import { ArgumentsHost, NotFoundException } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import { Prisma } from '@prisma/client';
 import { GlobalExceptionFilter } from './global-exception.filter';
 import { ExternalApiUnavailableException } from '../http/external-api-unavailable.exception';
 
@@ -60,6 +61,36 @@ describe('GlobalExceptionFilter', () => {
       expect.anything(),
       exception.getResponse(),
       404,
+    );
+  });
+
+  it('maps a Prisma error to its status code without leaking the raw message', () => {
+    const exception = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on fields: (email) at /secret/path/to/app.ts',
+      { code: 'P2002', clientVersion: '5.0.0' },
+    );
+
+    filter.catch(exception, host);
+
+    expect(httpAdapter.reply).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ statusCode: 409, message: 'Invalid request.' }),
+      409,
+    );
+  });
+
+  it('replaces an unexpected error message with a generic one instead of leaking it', () => {
+    const exception = new Error('Cannot read properties of undefined at /secret/path/app.ts:42');
+
+    filter.catch(exception, host);
+
+    expect(httpAdapter.reply).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        statusCode: 500,
+        message: 'An unexpected error occurred. Please try again later.',
+      }),
+      500,
     );
   });
 });
