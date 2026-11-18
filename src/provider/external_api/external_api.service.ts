@@ -58,6 +58,13 @@ export class ExternalApiService {
     );
   }
 
+  async findManyByQuery(q: string, pageSize: number): Promise<Array<Card>> {
+    return this.get<Array<Card>>(
+      '/cards',
+      { q, pageSize: String(pageSize) },
+      "An error happened while fetching your collection's cards",
+    );
+  }
 
   private async get<T>(
     path: string,
@@ -73,7 +80,7 @@ export class ExternalApiService {
       const response = await retryWithBackoff(
         () =>
           firstValueFrom(
-            this.httpService.get<T>(`${this.apiUrl}${path}`, config),
+            this.httpService.get<{ data: T }>(`${this.apiUrl}${path}`, config),
           ),
         {
           onRetry: (attempt, error) =>
@@ -82,7 +89,7 @@ export class ExternalApiService {
             ),
         },
       );
-      return response.data;
+      return response.data.data;
     } catch (error) {
       if (isRetryableHttpError(error)) {
         this.logger.error(
