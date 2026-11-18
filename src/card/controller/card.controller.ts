@@ -16,8 +16,11 @@ import { ResponseCardDto } from '../dto/response-card.dto';
 import { Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
+// More generous than the app's global default (10/60s): a user adding/removing
+// several cards in a row while browsing a set shouldn't get rate-limited.
+@Throttle({ default: { limit: 60, ttl: 60_000 } })
 @UseGuards(AuthGuard, ThrottlerGuard)
 @Controller('card')
 export class CardController {
