@@ -65,6 +65,23 @@ describe('CardService', () => {
       ]);
     });
 
+    it('should cap pageSize at the Pokemon TCG API max (250) for larger collections', async () => {
+      const dbCards = Array.from({ length: 300 }, (_, i) => ({
+        id: i,
+        remoteId: `card-${i}`,
+        userId: 1,
+      }));
+      mockPrismaService.card.findMany.mockResolvedValue(dbCards);
+      mockExternalApiService.findManyByQuery.mockResolvedValue([]);
+
+      await service.findAllUserCards(1);
+
+      expect(mockExternalApiService.findManyByQuery).toHaveBeenCalledWith(
+        expect.any(String),
+        250,
+      );
+    });
+
     it('should return empty array and skip API call when user has no cards', async () => {
       mockPrismaService.card.findMany.mockResolvedValue([]);
 
